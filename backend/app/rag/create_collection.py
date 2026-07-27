@@ -5,7 +5,7 @@ from qdrant_client.models import Distance, VectorParams
 client.create_collection(
     collection_name=settings.COLLECTION_NAME,
     vectors_config=VectorParams(
-        size=768,
+        size=3072,
         distance=Distance.COSINE,
     ),
 )
