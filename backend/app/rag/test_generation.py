@@ -1,11 +1,16 @@
 from app.rag.generation import generate_answer
 
-answer = generate_answer("What is a Forward Deployed AI Engineer?")
+response = generate_answer("What is a Forward Deployed AI Engineer?")
 
 print()
 
 print("=" * 80)
 
-print(answer)
+print(response.answer)
 
-print("=" * 80)
+print()
+
+print("Sources")
+
+for source in response.sources:
+    print(f"- {source.document_name} (Page {source.page})")
