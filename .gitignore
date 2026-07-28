@@ -1,4 +1,22 @@
-.venv
-__pycahce__
-.dist
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual Environment
+.venv/
+venv/
+
+# Environment variables
 .env
+
+# Uploads
+backend/upload/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
