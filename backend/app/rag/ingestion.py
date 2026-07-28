@@ -5,40 +5,40 @@ from app.rag.embedder import embeddings
 from app.rag.loader import load_pdf
 from app.rag.qdrant_client import client
 from app.rag.splitter import split_documents
-from app.utils.hash import generate_chunk_id
+from app.utils.hash import (
+    content_hash,
+    generate_chunk_uuid,
+)
 from qdrant_client.models import PointStruct
 
-# Number of chunks processed per batch.
-# Helps avoid timeouts and keeps memory usage low.
-BATCH_SIZE = 20
+BATCH_SIZE = 10
 
 
 def ingest_pdf(pdf_path: str) -> int:
     """
-    Complete PDF ingestion pipeline.
+    Complete ingestion pipeline.
 
-    Pipeline:
-        PDF
-            ↓
-        Load
-            ↓
-        Split
-            ↓
-        Batch Embeddings
-            ↓
-        Batch Upload to Qdrant
+    PDF
+        ↓
+    Load
+        ↓
+    Split
+        ↓
+    Embed (Batch)
+        ↓
+    Upload (Batch)
 
-    Returns:
-        int: Number of chunks ingested.
+    Returns
+    -------
+    int
+        Number of chunks uploaded.
     """
 
-    # Load PDF
+    document_name = Path(pdf_path).name
+
     documents = load_pdf(pdf_path)
 
-    # Split into chunks
     chunks = split_documents(documents)
-
-    document_name = Path(pdf_path).name
 
     total_chunks = len(chunks)
 
@@ -46,21 +46,20 @@ def ingest_pdf(pdf_path: str) -> int:
 
     uploaded = 0
 
-    # Process in batches
-    for start in range(0, total_chunks, BATCH_SIZE):
-        batch_chunks = chunks[start : start + BATCH_SIZE]
+    for batch_start in range(0, total_chunks, BATCH_SIZE):
+        batch_chunks = chunks[batch_start : batch_start + BATCH_SIZE]
 
-        texts = [chunk.page_content for chunk in batch_chunks]
+        batch_texts = [chunk.page_content for chunk in batch_chunks]
 
-        vectors = embeddings.embed_documents(texts)
+        batch_vectors = embeddings.embed_documents(batch_texts)
 
         points = []
 
-        for local_index, (chunk, vector) in enumerate(zip(batch_chunks, vectors)):
-            global_index = start + local_index
+        for local_index, (chunk, vector) in enumerate(zip(batch_chunks, batch_vectors)):
+            global_index = batch_start + local_index
 
             point = PointStruct(
-                id=generate_chunk_id(
+                id=generate_chunk_uuid(
                     document_name=document_name,
                     page=chunk.metadata.get("page", 0),
                     chunk_index=global_index,
@@ -69,6 +68,7 @@ def ingest_pdf(pdf_path: str) -> int:
                 payload={
                     "text": chunk.page_content,
                     "document_name": document_name,
+                    "content_hash": content_hash(chunk.page_content),
                     **chunk.metadata,
                 },
             )
@@ -85,6 +85,6 @@ def ingest_pdf(pdf_path: str) -> int:
 
         print(f"Uploaded {uploaded}/{total_chunks}")
 
-    print("✅ Ingestion Complete")
+    print("Ingestion Complete")
 
     return uploaded
