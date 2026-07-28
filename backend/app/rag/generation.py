@@ -1,6 +1,7 @@
 from app.config import settings
 from app.rag.prompts import RAG_SYSTEM_PROMPT
 from app.rag.retrieval import retrieve
+from app.rag.schemas import RAGResponse, Source
 from langchain_google_genai import ChatGoogleGenerativeAI
 
 llm = ChatGoogleGenerativeAI(
@@ -10,23 +11,50 @@ llm = ChatGoogleGenerativeAI(
 )
 
 
-def generate_answer(question: str, top_k: int = 5) -> str:
+def generate_answer(
+    question: str,
+    top_k: int = 5,
+) -> RAGResponse:
 
     retrieved_chunks = retrieve(
         query=question,
         limit=top_k,
     )
 
-    if not retrieved_chunks:
-        return "I couldn't find any relevant information in the uploaded documents."
+    context_parts: list[str] = []
 
-    context = "\n\n".join(
-        payload["text"]
-        for point in retrieved_chunks
-        if (payload := point.payload) is not None
+    seen: set[tuple[str, int]] = set()
+
+    sources: list[Source] = []
+
+    for chunk in retrieved_chunks:
+        payload = chunk.payload
+
+        if payload is None:
+            continue
+
+        context_parts.append(payload["text"])
+
+        key = (
+            payload["document_name"],
+            payload["page"],
+        )
+
+        if key not in seen:
+            seen.add(key)
+
+            sources.append(
+                Source(
+                    document_name=payload["document_name"],
+                    page=payload["page"] + 1,
+                )
+            )
+
+    context = "\n\n".join(context_parts)
+
+    prompt = RAG_SYSTEM_PROMPT.format(
+        context=context,
     )
-
-    prompt = RAG_SYSTEM_PROMPT.format(context=context)
 
     response = llm.invoke(
         [
@@ -35,9 +63,12 @@ def generate_answer(question: str, top_k: int = 5) -> str:
         ]
     )
 
-    content = response.content
+    answer = response.content
 
-    if isinstance(content, str):
-        return content
+    if not isinstance(answer, str):
+        answer = str(answer)
 
-    return "\n".join(map(str, content))
+    return RAGResponse(
+        answer=answer,
+        sources=sources,
+    )
