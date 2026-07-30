@@ -20,3 +20,8 @@ backend/upload/
 # OS
 .DS_Store
 Thumbs.db
+
+
+*.pyc
+
+.pytest_cache/
