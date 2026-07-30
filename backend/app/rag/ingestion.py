@@ -1,5 +1,7 @@
 from pathlib import Path
 
+from qdrant_client.models import PointStruct
+
 from app.config import settings
 from app.rag.embedder import embeddings
 from app.rag.loader import load_pdf
@@ -9,12 +11,15 @@ from app.utils.hash import (
     content_hash,
     generate_chunk_uuid,
 )
-from qdrant_client.models import PointStruct
 
 BATCH_SIZE = 10
 
 
-def ingest_pdf(pdf_path: str) -> int:
+def ingest_pdf(
+    path: str,
+    document_id: str,
+    user_id: str,
+) -> dict:
     """
     Complete ingestion pipeline.
 
@@ -24,29 +29,34 @@ def ingest_pdf(pdf_path: str) -> int:
         ↓
     Split
         ↓
-    Embed (Batch)
+    Embed
         ↓
-    Upload (Batch)
+    Upload to Qdrant
 
     Returns
     -------
-    int
-        Number of chunks uploaded.
+    {
+        "page_count": int,
+        "chunk_count": int
+    }
     """
 
-    document_name = Path(pdf_path).name
+    pdf_path = Path(path)
+    document_name = pdf_path.name
 
-    documents = load_pdf(pdf_path)
+    documents = load_pdf(str(pdf_path))
+
+    page_count = len(documents)
 
     chunks = split_documents(documents)
 
-    total_chunks = len(chunks)
+    chunk_count = len(chunks)
 
-    print(f"Found {total_chunks} chunks")
+    print(f"Found {chunk_count} chunks")
 
     uploaded = 0
 
-    for batch_start in range(0, total_chunks, BATCH_SIZE):
+    for batch_start in range(0, chunk_count, BATCH_SIZE):
         batch_chunks = chunks[batch_start : batch_start + BATCH_SIZE]
 
         batch_texts = [chunk.page_content for chunk in batch_chunks]
@@ -56,20 +66,25 @@ def ingest_pdf(pdf_path: str) -> int:
         points = []
 
         for local_index, (chunk, vector) in enumerate(zip(batch_chunks, batch_vectors)):
-            global_index = batch_start + local_index
+            global_chunk_index = batch_start + local_index
+
+            page = chunk.metadata.get("page", 0)
 
             point = PointStruct(
                 id=generate_chunk_uuid(
                     document_name=document_name,
-                    page=chunk.metadata.get("page", 0),
-                    chunk_index=global_index,
+                    page=page,
+                    chunk_index=global_chunk_index,
                 ),
                 vector=vector,
                 payload={
-                    "text": chunk.page_content,
+                    "document_id": document_id,
+                    "user_id": user_id,
                     "document_name": document_name,
+                    "page": page,
+                    "chunk_index": global_chunk_index,
+                    "text": chunk.page_content,
                     "content_hash": content_hash(chunk.page_content),
-                    **chunk.metadata,
                 },
             )
 
@@ -83,8 +98,11 @@ def ingest_pdf(pdf_path: str) -> int:
 
         uploaded += len(points)
 
-        print(f"Uploaded {uploaded}/{total_chunks}")
+        print(f"Uploaded {uploaded}/{chunk_count}")
 
     print("Ingestion Complete")
 
-    return uploaded
+    return {
+        "page_count": page_count,
+        "chunk_count": chunk_count,
+    }

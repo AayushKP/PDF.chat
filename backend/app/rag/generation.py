@@ -1,8 +1,9 @@
+from langchain_google_genai import ChatGoogleGenerativeAI
+
 from app.config import settings
 from app.rag.prompts import RAG_SYSTEM_PROMPT
-from app.rag.retrieval import retrieve
+from app.rag.retriever import retrieve
 from app.rag.schemas import RAGResponse, Source
-from langchain_google_genai import ChatGoogleGenerativeAI
 
 llm = ChatGoogleGenerativeAI(
     model="gemini-2.5-flash",
@@ -13,11 +14,32 @@ llm = ChatGoogleGenerativeAI(
 
 def generate_answer(
     question: str,
+    user_id: str,
+    document_id: str | None = None,
     top_k: int = 5,
 ) -> RAGResponse:
+    """
+    Generate an answer using Retrieval-Augmented Generation (RAG).
+
+    Parameters
+    ----------
+    question:
+        User question.
+
+    user_id:
+        Current authenticated user.
+
+    document_id:
+        Optional document filter.
+
+    top_k:
+        Number of chunks to retrieve.
+    """
 
     retrieved_chunks = retrieve(
         query=question,
+        user_id=user_id,
+        document_id=document_id,
         limit=top_k,
     )
 
@@ -28,16 +50,11 @@ def generate_answer(
     sources: list[Source] = []
 
     for chunk in retrieved_chunks:
-        payload = chunk.payload
-
-        if payload is None:
-            continue
-
-        context_parts.append(payload["text"])
+        context_parts.append(chunk["text"])
 
         key = (
-            payload["document_name"],
-            payload["page"],
+            chunk["document_name"],
+            chunk["page"],
         )
 
         if key not in seen:
@@ -45,8 +62,8 @@ def generate_answer(
 
             sources.append(
                 Source(
-                    document_name=payload["document_name"],
-                    page=payload["page"] + 1,
+                    document_name=chunk["document_name"],
+                    page=chunk["page"] + 1,
                 )
             )
 
