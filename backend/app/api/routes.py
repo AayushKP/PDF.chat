@@ -1,10 +1,11 @@
 import shutil
 from pathlib import Path
 
-from app.models.chat import ChatRequest
+from fastapi import APIRouter, File, HTTPException, UploadFile
+
 from app.rag.generation import generate_answer
 from app.rag.ingestion import ingest_pdf
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from app.schemas.chat import ChatRequest
 
 router = APIRouter()
 
