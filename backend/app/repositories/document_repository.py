@@ -1,5 +1,3 @@
-# ALL DB OPERATIONS RELATED TO DOCUMENT TABLE
-
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -31,15 +29,6 @@ class DocumentRepository:
 
         return document
 
-    def update_status(
-        self,
-        document: Document,
-        status: DocumentStatus,
-    ):
-        document.status = status
-
-        self.db.commit()
-
     def update_counts(
         self,
         document: Document,
@@ -50,6 +39,34 @@ class DocumentRepository:
         document.chunk_count = chunk_count
 
         self.db.commit()
+        self.db.refresh(document)
+
+    def update_status(
+        self,
+        document: Document,
+        status: DocumentStatus,
+    ):
+        document.status = status
+
+        self.db.commit()
+        self.db.refresh(document)
+
+    def get_by_id(
+        self,
+        document_id: UUID,
+    ) -> Document | None:
+        return self.db.query(Document).filter(Document.id == document_id).first()
+
+    def list_by_user(
+        self,
+        user_id: UUID,
+    ):
+        return (
+            self.db.query(Document)
+            .filter(Document.user_id == user_id)
+            .order_by(Document.created_at.desc())
+            .all()
+        )
 
     def delete(
         self,
