@@ -10,6 +10,8 @@ class Settings(BaseSettings):
 
     COLLECTION_NAME: str
 
+    DATABASE_URL: str
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",
