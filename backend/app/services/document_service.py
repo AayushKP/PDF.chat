@@ -1,5 +1,3 @@
-# BUSINESS LOGIC RELATED TO DOCUMENT TABLE
-
 import shutil
 import uuid
 from pathlib import Path
@@ -51,15 +49,22 @@ class DocumentService:
             )
 
             self.repository.update_status(
-                document,
-                DocumentStatus.READY,
+                document=document,
+                status=DocumentStatus.READY,
             )
 
             return document
 
         except Exception:
             self.repository.update_status(
-                document,
-                DocumentStatus.FAILED,
+                document=document,
+                status=DocumentStatus.FAILED,
             )
+
             raise
+
+    def list_documents(
+        self,
+        user_id,
+    ):
+        return self.repository.list_by_user(user_id)
