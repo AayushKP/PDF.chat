@@ -20,7 +20,7 @@ from app.services.document_service import DocumentService
 router = APIRouter()
 
 # Temporary until Google OAuth is added
-DUMMY_USER_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
+DUMMY_USER_ID = "11111111-1111-1111-1111-111111111111"
 
 
 @router.post("/documents")
