@@ -18,6 +18,36 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 
+class User(Base):
+    __tablename__ = "user"
+
+    id: Mapped[str] = mapped_column(
+        String,
+        primary_key=True,
+    )
+
+    name: Mapped[str] = mapped_column(String)
+
+    email: Mapped[str] = mapped_column(String)
+
+    email_verified: Mapped[bool] = mapped_column(
+        "emailVerified",
+    )
+
+    image: Mapped[str | None] = mapped_column(
+        String,
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        "createdAt",
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        "updatedAt",
+    )
+
+
 class DocumentStatus(str, Enum):
     PROCESSING = "PROCESSING"
     READY = "READY"
@@ -33,7 +63,7 @@ class Document(Base):
         default=uuid.uuid4,
     )
 
-    user_id: Mapped[uuid.UUID] = mapped_column(
+    user_id: Mapped[str] = mapped_column(
         ForeignKey("user.id"),
     )
 
@@ -63,7 +93,7 @@ class Conversation(Base):
         default=uuid.uuid4,
     )
 
-    user_id: Mapped[uuid.UUID] = mapped_column(
+    user_id: Mapped[str] = mapped_column(
         ForeignKey("user.id"),
     )
 
