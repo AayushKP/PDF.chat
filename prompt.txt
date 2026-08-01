@@ -1,0 +1,427 @@
+You are a senior Full Stack Engineer.
+
+We already have a production-oriented FastAPI backend with the following architecture:
+
+- FastAPI
+- PostgreSQL (Supabase)
+- SQLAlchemy
+- Alembic
+- Qdrant
+- LangChain
+- Gemini 2.5 Flash
+- Repository + Service Pattern
+
+The backend already exposes:
+
+POST /documents
+GET /documents
+
+POST /chat
+
+GET /conversations
+GET /conversations/{conversation_id}
+DELETE /conversations/{conversation_id}
+
+Authentication is NOT implemented yet.
+
+I want you to build ONLY the frontend authentication layer using Next.js 15 App Router, React 19 and Better Auth.
+
+DO NOT build any backend authentication.
+
+The backend will only verify JWTs later.
+
+==========================================================
+TECH STACK
+==========================================================
+
+- Next.js 15 App Router
+- React 19
+- TypeScript
+- Tailwind CSS v4
+- shadcn/ui
+- Better Auth
+- TanStack Query
+- Zustand
+- React Hook Form
+- Zod
+
+==========================================================
+AUTHENTICATION
+==========================================================
+
+Use Better Auth.
+
+Implement ONLY:
+
+- Google OAuth
+- Session management
+- Protected routes
+- Login
+- Logout
+
+NO email/password.
+
+==========================================================
+PAGES
+==========================================================
+
+Create:
+
+/login
+
+/dashboard
+
+The dashboard should be protected.
+
+If unauthenticated
+
+↓
+
+redirect to /login
+
+==========================================================
+LAYOUT
+==========================================================
+
+Dashboard Layout
+
+Sidebar
+
+Main Content
+
+Top Navbar
+
+Profile Dropdown
+
+Logout
+
+Responsive
+
+==========================================================
+SIDEBAR
+==========================================================
+
+Sidebar should contain
+
+Documents
+
+Conversations
+
+Settings
+
+==========================================================
+NAVBAR
+==========================================================
+
+Show
+
+Google Profile Picture
+
+User Name
+
+Logout button
+
+==========================================================
+STATE MANAGEMENT
+==========================================================
+
+Use Better Auth session.
+
+Do NOT duplicate user state in Zustand.
+
+Use Zustand only for UI state.
+
+==========================================================
+API LAYER
+==========================================================
+
+Create an API client using fetch.
+
+Automatically attach
+
+Authorization: Bearer <JWT>
+
+to every request.
+
+Even though the backend doesn't verify JWTs yet, prepare the client for it.
+
+==========================================================
+FILE STRUCTURE
+==========================================================
+
+src/
+
+app/
+
+components/
+
+features/
+
+lib/
+
+hooks/
+
+providers/
+
+store/
+
+types/
+
+==========================================================
+FEATURES
+==========================================================
+
+Implement
+
+Google Login
+
+Logout
+
+Protected Routes
+
+Session Provider
+
+Loading State
+
+Auth Guard
+
+API Client
+
+Error Handling
+
+==========================================================
+DO NOT IMPLEMENT
+==========================================================
+
+Do NOT build
+
+Chat UI
+
+PDF Upload
+
+Streaming
+
+Conversation UI
+
+Settings UI
+
+Only authentication and dashboard shell.
+
+==========================================================
+OUTPUT
+==========================================================
+
+Generate complete production-ready code.
+
+Use latest Better Auth practices.
+
+Use App Router only.
+
+No deprecated APIs.
+
+Code should be modular, scalable and ready to connect to the existing FastAPI backend.
+
+==========================================================
+DESIGN DIRECTION (VERY IMPORTANT)
+==========================================================
+
+I DO NOT want a generic SaaS dashboard or a typical shadcn template.
+
+The application should feel like a premium AI product similar to:
+
+- Perplexity AI
+- Midjourney
+- Linear
+- Raycast
+- Vercel
+- OpenAI
+- Arc Browser
+
+The design philosophy should be:
+
+- Minimal
+- Premium
+- Luxurious
+- Elegant
+- Calm
+- Modern
+- Editorial
+- Spacious
+- High-end
+
+Avoid loud gradients, neon colors, glassmorphism everywhere, or startup-looking components.
+
+==========================================================
+VISUAL STYLE
+==========================================================
+
+Create an immersive landing/login experience.
+
+Use:
+
+- Large typography
+- Excellent spacing
+- Editorial layouts
+- Premium animations
+- Rich depth
+- Beautiful shadows
+- Soft lighting
+- Carefully balanced contrast
+
+Everything should feel handcrafted.
+
+==========================================================
+BACKGROUND
+==========================================================
+
+Create an animated premium background.
+
+Examples of acceptable inspiration:
+
+- flowing aurora
+- soft mesh gradients
+- animated particles
+- subtle noise texture
+- cinematic light rays
+- moving radial gradients
+- floating blur blobs
+- premium dark canvas
+- depth through layered gradients
+
+The background should be alive but never distracting.
+
+No cheap CSS gradient backgrounds.
+
+==========================================================
+TYPOGRAPHY
+==========================================================
+
+Typography is one of the highest priorities.
+
+Use premium modern fonts.
+
+Prefer combinations similar to:
+
+Headings:
+- Geist
+- Instrument Serif
+- Satoshi
+- Cabinet Grotesk
+- Neue Montreal
+- General Sans
+
+Body:
+- Geist Sans
+- Inter
+- Manrope
+
+Use large display typography.
+
+Headings should feel like Perplexity, Midjourney or Linear.
+
+Pay attention to:
+
+- font weight
+- line height
+- tracking
+- rhythm
+- whitespace
+
+==========================================================
+ANIMATIONS
+==========================================================
+
+Animations should be subtle and premium.
+
+Examples:
+
+- fade in
+- stagger animations
+- smooth page transitions
+- hover elevation
+- magnetic buttons
+- cursor interactions
+- subtle glow
+- animated gradients
+- soft floating motion
+
+No exaggerated animations.
+
+Everything should feel expensive.
+
+==========================================================
+COLOR SYSTEM
+==========================================================
+
+Dark theme first.
+
+Use deep blacks instead of pure black.
+
+Examples:
+
+- ink
+- charcoal
+- graphite
+- obsidian
+
+Accent colors should be minimal.
+
+Use restrained blues, violets or whites.
+
+The interface should feel like an AI operating system.
+
+==========================================================
+COMPONENT STYLE
+==========================================================
+
+Buttons
+
+Cards
+
+Inputs
+
+Dropdowns
+
+Sidebar
+
+Navbar
+
+Dialogs
+
+Everything should have a consistent premium design language.
+
+Rounded corners should be elegant—not overly rounded.
+
+Use subtle borders.
+
+Use shadows only where they improve depth.
+
+==========================================================
+USER EXPERIENCE
+==========================================================
+
+The first impression should make users feel:
+
+"This looks like a premium AI product."
+
+The experience should prioritize polish over feature density.
+
+Every interaction should feel intentional.
+
+==========================================================
+DO NOT COPY
+==========================================================
+
+Do NOT recreate Perplexity or Midjourney.
+
+Take inspiration from their quality, typography, spacing, interaction design and visual hierarchy.
+
+Create an original design language.
+
+==========================================================
+GOAL
+==========================================================
+
+The final result should look like a premium AI company spent months designing it.
+
+It should be portfolio-worthy and distinguish itself from generic Tailwind or shadcn dashboards.
