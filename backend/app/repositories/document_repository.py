@@ -12,7 +12,7 @@ class DocumentRepository:
     def create(
         self,
         *,
-        user_id: UUID,
+        user_id: str,
         filename: str,
     ) -> Document:
         document = Document(
@@ -59,7 +59,7 @@ class DocumentRepository:
 
     def list_by_user(
         self,
-        user_id: UUID,
+        user_id: str,
     ):
         return (
             self.db.query(Document)

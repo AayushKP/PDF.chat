@@ -18,7 +18,7 @@ class ChatService:
     def chat(
         self,
         *,
-        user_id: UUID,
+        user_id: str,
         question: str,
         document_id: UUID | None = None,
         conversation_id: UUID | None = None,
@@ -109,7 +109,7 @@ class ChatService:
 
     def list_conversations(
         self,
-        user_id: UUID,
+        user_id: str,
     ) -> list[ConversationListItem]:
         conversations = self.repository.list_conversations(
             user_id=user_id,
@@ -124,7 +124,7 @@ class ChatService:
         self,
         *,
         conversation_id: UUID,
-        user_id: UUID,
+        user_id: str,
     ) -> ConversationResponse:
         conversation = self.repository.get_conversation_by_user(
             conversation_id=conversation_id,
@@ -142,7 +142,7 @@ class ChatService:
         self,
         *,
         conversation_id: UUID,
-        user_id: UUID,
+        user_id: str,
     ) -> None:
         conversation = self.repository.get_conversation_by_user(
             conversation_id=conversation_id,

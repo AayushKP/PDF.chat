@@ -10,7 +10,7 @@ class ConversationRepository:
         self.db = db
 
     def create_conversation(
-        self, *, user_id: UUID, title: str, document_id: UUID
+        self, *, user_id: str, title: str, document_id: UUID
     ) -> Conversation:
         conversation = Conversation(
             user_id=user_id, title=title, document_id=document_id
@@ -24,7 +24,7 @@ class ConversationRepository:
 
     def list_conversations(
         self,
-        user_id: UUID,
+        user_id: str,
     ) -> list[Conversation]:
         return (
             self.db.query(Conversation)
@@ -64,7 +64,7 @@ class ConversationRepository:
     def get_conversation_by_user(
         self,
         conversation_id: UUID,
-        user_id: UUID,
+        user_id: str,
     ) -> Conversation | None:
         return (
             self.db.query(Conversation)
