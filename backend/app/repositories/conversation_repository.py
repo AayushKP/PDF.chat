@@ -10,14 +10,10 @@ class ConversationRepository:
         self.db = db
 
     def create_conversation(
-        self,
-        *,
-        user_id: UUID,
-        title: str,
+        self, *, user_id: UUID, title: str, document_id: UUID
     ) -> Conversation:
         conversation = Conversation(
-            user_id=user_id,
-            title=title,
+            user_id=user_id, title=title, document_id=document_id
         )
 
         self.db.add(conversation)
@@ -25,17 +21,6 @@ class ConversationRepository:
         self.db.refresh(conversation)
 
         return conversation
-
-    def get_conversation(
-        self,
-        conversation_id: UUID,
-    ) -> Conversation | None:
-        return (
-            self.db.query(Conversation)
-            .options(selectinload(Conversation.messages))
-            .filter(Conversation.id == conversation_id)
-            .first()
-        )
 
     def list_conversations(
         self,
