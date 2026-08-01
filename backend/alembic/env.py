@@ -40,10 +40,30 @@ def run_migrations_online():
         poolclass=pool.NullPool,
     )
 
+    def include_object(
+        object,
+        name,
+        type_,
+        reflected,
+        compare_to,
+    ):
+        # Better Auth owns these tables
+        if type_ == "table" and name in {
+            "user",
+            "account",
+            "session",
+            "verification",
+        }:
+            return False
+
+        return True
+
     with connectable.connect() as connection:
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
+            include_object=include_object,
+            compare_type=True,
         )
 
         with context.begin_transaction():
