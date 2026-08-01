@@ -24,52 +24,6 @@ class DocumentStatus(str, Enum):
     FAILED = "FAILED"
 
 
-class User(Base):
-    __tablename__ = "users"
-
-    id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        primary_key=True,
-        default=uuid.uuid4,
-    )
-
-    google_id: Mapped[str] = mapped_column(
-        String,
-        unique=True,
-        nullable=False,
-    )
-
-    email: Mapped[str] = mapped_column(
-        String,
-        unique=True,
-        nullable=False,
-    )
-
-    name: Mapped[str] = mapped_column(String)
-
-    picture: Mapped[str | None] = mapped_column(
-        String,
-        nullable=True,
-    )
-
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-    )
-
-    documents = relationship(
-        "Document",
-        back_populates="user",
-        cascade="all, delete",
-    )
-
-    conversations = relationship(
-        "Conversation",
-        back_populates="user",
-        cascade="all, delete",
-    )
-
-
 class Document(Base):
     __tablename__ = "documents"
 
@@ -80,7 +34,7 @@ class Document(Base):
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id"),
+        ForeignKey("user.id"),
     )
 
     filename: Mapped[str] = mapped_column(String)
@@ -99,11 +53,6 @@ class Document(Base):
         server_default=func.now(),
     )
 
-    user = relationship(
-        "User",
-        back_populates="documents",
-    )
-
 
 class Conversation(Base):
     __tablename__ = "conversations"
@@ -115,8 +64,10 @@ class Conversation(Base):
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("users.id"),
+        ForeignKey("user.id"),
     )
+
+    document_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("documents.id"))
 
     title: Mapped[str] = mapped_column(String)
 
@@ -125,9 +76,8 @@ class Conversation(Base):
         server_default=func.now(),
     )
 
-    user = relationship(
-        "User",
-        back_populates="conversations",
+    document = relationship(
+        "Document",
     )
 
     messages = relationship(
