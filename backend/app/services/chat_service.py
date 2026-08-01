@@ -24,18 +24,40 @@ class ChatService:
         conversation_id: UUID | None = None,
     ):
         """
-        Creates a conversation if needed,
-        stores the user's message,
-        performs RAG,
-        stores the assistant's response,
-        returns the answer.
+        Chat Flow
+
+        New Conversation
+        ----------------
+        question
+            +
+        document_id
+
+        Existing Conversation
+        ---------------------
+        question
+            +
+        conversation_id
+
+        The conversation permanently remembers which document
+        it belongs to.
         """
 
+        # ----------------------------
+        # New Conversation
+        # ----------------------------
         if conversation_id is None:
+            if document_id is None:
+                raise ValueError("document_id is required for a new conversation.")
+
             conversation = self.repository.create_conversation(
                 user_id=user_id,
+                document_id=document_id,
                 title=question[:60],
             )
+
+        # ----------------------------
+        # Existing Conversation
+        # ----------------------------
         else:
             conversation = self.repository.get_conversation_by_user(
                 conversation_id=conversation_id,
@@ -45,21 +67,30 @@ class ChatService:
             if conversation is None:
                 raise ValueError("Conversation not found.")
 
-        # Save user message
+            # Conversation already knows which PDF it belongs to
+            document_id = conversation.document_id
+
+        # ----------------------------
+        # Store User Message
+        # ----------------------------
         self.repository.add_message(
             conversation_id=conversation.id,
             role="user",
             content=question,
         )
 
-        # Generate answer using existing RAG pipeline
+        # ----------------------------
+        # RAG
+        # ----------------------------
         rag_response = generate_answer(
             question=question,
             user_id=str(user_id),
-            document_id=str(document_id) if document_id else None,
+            document_id=str(document_id),
         )
 
-        # Save assistant message
+        # ----------------------------
+        # Store Assistant Message
+        # ----------------------------
         self.repository.add_message(
             conversation_id=conversation.id,
             role="assistant",
@@ -67,6 +98,9 @@ class ChatService:
             citations=[source.model_dump() for source in rag_response.sources],
         )
 
+        # ----------------------------
+        # Response
+        # ----------------------------
         return {
             "conversation_id": conversation.id,
             "answer": rag_response.answer,
@@ -81,7 +115,10 @@ class ChatService:
             user_id=user_id,
         )
 
-        return [ConversationListItem.model_validate(c) for c in conversations]
+        return [
+            ConversationListItem.model_validate(conversation)
+            for conversation in conversations
+        ]
 
     def get_conversation(
         self,
@@ -97,7 +134,9 @@ class ChatService:
         if conversation is None:
             raise ValueError("Conversation not found.")
 
-        return ConversationResponse.model_validate(conversation)
+        return ConversationResponse.model_validate(
+            conversation,
+        )
 
     def delete_conversation(
         self,
