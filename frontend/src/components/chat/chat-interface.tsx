@@ -2,13 +2,10 @@
 
 import { useState, useRef, useEffect } from "react";
 import {
-  Send,
   Paperclip,
   FileText,
-  User as UserIcon,
   Loader2,
   Sparkles,
-  ChevronDown,
   BookOpen,
   Plus,
   X,
@@ -18,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useSendChat, useUploadDocument, useConversation } from "@/hooks/use-chat-data";
 import { formatFilename } from "@/lib/utils";
+import { FormattedMarkdown } from "@/components/chat/formatted-markdown";
 import type { Document, ChatMessage, Citation } from "@/types";
 
 interface ChatInterfaceProps {
@@ -44,7 +42,6 @@ export function ChatInterface({
 }: ChatInterfaceProps) {
   const [inputQuestion, setInputQuestion] = useState("");
   const [localMessages, setLocalMessages] = useState<ChatMessage[]>([]);
-  const [activeCitations, setActiveCitations] = useState<Record<number, boolean>>({});
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -147,13 +144,6 @@ export function ChatInterface({
     });
   };
 
-  const toggleCitations = (index: number) => {
-    setActiveCitations((prev) => ({
-      ...prev,
-      [index]: !prev[index],
-    }));
-  };
-
   const topTitle = conversationData?.title || (activeDocument ? formatFilename(activeDocument.filename) : "");
 
   return (
@@ -171,18 +161,20 @@ export function ChatInterface({
         }}
       />
 
-      {/* Header bar (no 'PDF.chat' text in top left corner per request) */}
-      <div className="flex items-center justify-between px-6 py-2 shrink-0 border-b border-border/20">
-        <div className="flex items-center gap-2 truncate">
+      {/* Header bar */}
+      <div className="flex items-center justify-between px-4 sm:px-6 py-2.5 shrink-0 border-b border-border/20">
+        <div className="flex items-center gap-2 truncate max-w-[70%]">
           {topTitle && (
             <span className="text-xs font-semibold tracking-tight text-foreground truncate">
               {topTitle}
             </span>
           )}
           {activeDocument && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full shrink-0">
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium bg-red-500/10 text-red-500 px-2.5 py-0.5 rounded-full shrink-0">
               <FileText className="h-3 w-3" />
-              {formatFilename(activeDocument.filename)}
+              <span className="truncate max-w-[140px] sm:max-w-[200px]">
+                {formatFilename(activeDocument.filename)}
+              </span>
               <button
                 onClick={() => onSelectDocument(null)}
                 className="ml-1 hover:text-red-700"
@@ -198,7 +190,7 @@ export function ChatInterface({
           variant="outline"
           size="sm"
           onClick={onNewChat}
-          className="gap-1 text-xs border-border/60 hover:bg-muted"
+          className="gap-1 text-xs border-border/60 hover:bg-muted shrink-0"
         >
           <Plus className="h-3.5 w-3.5" />
           <span>New Chat</span>
@@ -213,7 +205,7 @@ export function ChatInterface({
           </div>
         ) : localMessages.length === 0 ? (
           /* Centered ChatGPT Initial / Empty State */
-          <div className="flex min-h-full flex-col items-center justify-center px-4 py-6 text-center max-w-2xl mx-auto space-y-6">
+          <div className="flex min-h-full flex-col items-center justify-center px-4 py-6 text-center w-full lg:w-[70%] max-w-5xl mx-auto space-y-6">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-card border border-border shadow-sm text-foreground">
               <Sparkles className="h-6 w-6 text-primary" />
             </div>
@@ -222,7 +214,7 @@ export function ChatInterface({
               <h2 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
                 What can I help you analyze today?
               </h2>
-              <p className="text-xs text-muted-foreground max-w-md mx-auto">
+              <p className="text-xs sm:text-sm text-muted-foreground max-w-md mx-auto">
                 Attach a PDF document or select one from your drive to get instant, citation-backed answers.
               </p>
             </div>
@@ -264,12 +256,12 @@ export function ChatInterface({
             )}
 
             {/* Prompt Suggestion Chips */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-xl pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 w-full max-w-xl pt-2">
               {promptSuggestions.map((suggestion, i) => (
                 <button
                   key={i}
                   onClick={() => handleSend(suggestion)}
-                  className="flex items-center justify-between rounded-xl border border-border bg-card p-3 text-left text-xs font-medium text-muted-foreground hover:border-primary/40 hover:bg-muted/40 hover:text-foreground transition-all group shadow-sm"
+                  className="flex items-center justify-between rounded-xl border border-border bg-card p-3 text-left text-xs sm:text-sm font-medium text-muted-foreground hover:border-primary/40 hover:bg-muted/40 hover:text-foreground transition-all group shadow-sm"
                 >
                   <span>{suggestion}</span>
                   <ArrowUp className="h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-opacity text-primary shrink-0" />
@@ -278,87 +270,54 @@ export function ChatInterface({
             </div>
           </div>
         ) : (
-          /* Active Conversation Stream - Centered ChatGPT Layout */
-          <div className="max-w-3xl mx-auto px-4 py-6 space-y-6 w-full">
+          /* Active Conversation Stream - Responsive 70% Layout without Avatars */
+          <div className="w-full lg:w-[70%] max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-10 sm:space-y-12">
             {localMessages.map((msg, index) => {
               const isUser = msg.role === "user";
               return (
                 <div
                   key={index}
-                  className={`flex gap-3 ${isUser ? "justify-end" : "justify-start"}`}
+                  className={`w-full flex ${isUser ? "justify-end" : "justify-start"}`}
                 >
-                  {!isUser && (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground shrink-0 text-xs font-bold shadow-sm">
-                      <Sparkles className="h-4 w-4" />
-                    </div>
-                  )}
+                  <div className={`space-y-3 ${isUser ? "max-w-[90%] sm:max-w-[80%]" : "w-full"}`}>
+                    {isUser ? (
+                      <div className="rounded-2xl px-5 py-3 text-sm sm:text-base leading-relaxed whitespace-pre-wrap bg-zinc-800/90 text-zinc-100 border border-zinc-700/50 shadow-sm ml-auto w-fit">
+                        {msg.content}
+                      </div>
+                    ) : (
+                      <div className="w-full py-1 text-foreground space-y-3">
+                        <FormattedMarkdown content={msg.content} />
 
-                  <div className={`space-y-2 max-w-[85%] ${isUser ? "items-end" : "items-start"}`}>
-                    <div
-                      className={`rounded-2xl px-4 py-2.5 text-xs leading-relaxed whitespace-pre-wrap ${
-                        isUser
-                          ? "bg-primary text-primary-foreground rounded-tr-none shadow-sm"
-                          : "bg-card text-foreground border border-border/80 rounded-tl-none"
-                      }`}
-                    >
-                      {msg.content}
-                    </div>
-
-                    {/* Citations accordion */}
-                    {!isUser && msg.citations && msg.citations.length > 0 && (
-                      <div className="rounded-xl border border-border/60 bg-card p-2 text-xs">
-                        <button
-                          onClick={() => toggleCitations(index)}
-                          className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
-                        >
-                          <BookOpen className="h-3.5 w-3.5 text-primary" />
-                          <span>Sources & Citations ({msg.citations.length})</span>
-                          <ChevronDown
-                            className={`h-3 w-3 transition-transform ${
-                              activeCitations[index] ? "rotate-180" : ""
-                            }`}
-                          />
-                        </button>
-
-                        {activeCitations[index] && (
-                          <div className="mt-2 space-y-1.5 pt-2 border-t border-border/40">
-                            {msg.citations.map((cite: Citation, citeIdx: number) => (
-                              <div
-                                key={citeIdx}
-                                className="rounded-lg bg-muted/40 p-2 text-[11px] space-y-1"
-                              >
-                                <p className="font-semibold text-primary">
-                                  Page {cite.page_number ?? cite.page ?? "N/A"}
-                                </p>
-                                {cite.content && (
-                                  <p className="text-muted-foreground line-clamp-3 italic">
-                                    &quot;{cite.content}&quot;
-                                  </p>
-                                )}
-                              </div>
-                            ))}
+                        {/* Sources & Citations - Clean Comma Separated Format */}
+                        {msg.citations && msg.citations.length > 0 && (
+                          <div className="flex items-center flex-wrap gap-1.5 text-xs text-muted-foreground pt-3 border-t border-border/30">
+                            <span className="font-semibold text-foreground/80 flex items-center gap-1.5">
+                              <BookOpen className="h-3.5 w-3.5 text-primary" />
+                              Sources:
+                            </span>
+                            <span className="font-medium text-foreground/90">
+                              {Array.from(
+                                new Set(
+                                  msg.citations.map(
+                                    (c: Citation) =>
+                                      `Page ${c.page_number ?? c.page ?? "N/A"}`
+                                  )
+                                )
+                              ).join(", ")}
+                            </span>
                           </div>
                         )}
                       </div>
                     )}
                   </div>
-
-                  {isUser && (
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-muted text-foreground shrink-0 text-xs font-bold border border-border">
-                      <UserIcon className="h-4 w-4" />
-                    </div>
-                  )}
                 </div>
               );
             })}
 
             {sendChatMutation.isPending && (
-              <div className="flex gap-3 items-center text-xs text-muted-foreground py-2">
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground shrink-0">
-                  <Sparkles className="h-4 w-4 animate-spin" />
-                </div>
+              <div className="flex gap-3 items-center text-xs sm:text-sm text-muted-foreground py-2">
                 <div className="flex items-center gap-2 bg-card border border-border px-4 py-2 rounded-2xl shadow-sm">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
                   <span>Thinking & extracting answers...</span>
                 </div>
               </div>
@@ -369,13 +328,30 @@ export function ChatInterface({
         )}
       </div>
 
-      {/* Fixed Bottom Centered Input Bar (ChatGPT / T3 Chat Style) */}
+      {/* Fixed Bottom Centered Input Bar */}
       <div className="w-full shrink-0 bg-background/90 backdrop-blur-md px-4 py-3 border-t-0">
-        <div className="max-w-3xl mx-auto space-y-1.5">
+        <div className="w-full lg:w-[70%] max-w-5xl mx-auto space-y-2">
           {uploadDocumentMutation.isPending && (
-            <div className="flex items-center gap-2 text-xs text-primary bg-primary/10 px-3.5 py-1.5 rounded-xl font-medium">
+            <div className="flex items-center gap-2 text-xs text-primary bg-primary/10 px-3.5 py-1.5 rounded-xl font-medium w-fit">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
               <span>Indexing PDF...</span>
+            </div>
+          )}
+
+          {activeDocument && (
+            <div className="flex items-center gap-1.5 text-xs bg-red-500/10 text-red-500 px-3 py-1 rounded-xl w-fit font-medium border border-red-500/20 shadow-sm">
+              <FileText className="h-3.5 w-3.5" />
+              <span className="truncate max-w-[200px] sm:max-w-[280px]">
+                {formatFilename(activeDocument.filename)}
+              </span>
+              <button
+                type="button"
+                onClick={() => onSelectDocument(null)}
+                className="hover:text-red-700 ml-1 p-0.5 rounded"
+                title="Remove attached PDF"
+              >
+                <X className="h-3 w-3" />
+              </button>
             </div>
           )}
 
@@ -404,7 +380,7 @@ export function ChatInterface({
                   : "Attach a PDF or type your question..."
               }
               rows={1}
-              className="flex-1 resize-none bg-transparent px-2.5 py-1.5 text-xs focus:outline-none max-h-32 min-h-[32px] text-foreground"
+              className="flex-1 resize-none bg-transparent px-2.5 py-1.5 text-xs sm:text-sm focus:outline-none max-h-32 min-h-[32px] text-foreground"
             />
 
             {/* Send Button */}
