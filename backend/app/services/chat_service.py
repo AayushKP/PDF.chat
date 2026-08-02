@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from app.rag.generation import generate_answer
+from app.rag.question_rewriter import rewrite_question
 from app.repositories.conversation_repository import ConversationRepository
 from app.schemas.conversation import (
     ConversationListItem,
@@ -70,6 +71,45 @@ class ChatService:
             # Conversation already knows which PDF it belongs to
             document_id = conversation.document_id
 
+        # ----------------------------------
+        # Build conversation history
+        # ----------------------------------
+
+        history = ""
+
+        if conversation_id is not None:
+            recent_messages = self.repository.get_recent_messages(
+                conversation.id,
+            )
+
+            history = "\n".join(
+                f"{message.role}: {message.content}" for message in recent_messages
+            )
+
+        # ----------------------------------
+        # Rewrite question
+        # ----------------------------------
+
+        standalone_question = rewrite_question(
+            history=history,
+            question=question,
+        )
+
+        # ----------------------------------
+        # RAG
+        # ----------------------------------
+
+        rag_response = generate_answer(
+            question=standalone_question,
+            user_id=user_id,
+            document_id=str(document_id),
+        )
+
+        print("=" * 60)
+        print("Original :", question)
+        print("Rewritten:", standalone_question)
+        print("=" * 60)
+
         # ----------------------------
         # Store User Message
         # ----------------------------
@@ -77,15 +117,6 @@ class ChatService:
             conversation_id=conversation.id,
             role="user",
             content=question,
-        )
-
-        # ----------------------------
-        # RAG
-        # ----------------------------
-        rag_response = generate_answer(
-            question=question,
-            user_id=str(user_id),
-            document_id=str(document_id),
         )
 
         # ----------------------------
