@@ -75,3 +75,18 @@ class ConversationRepository:
             )
             .first()
         )
+
+    def get_recent_messages(
+        self,
+        conversation_id: UUID,
+        limit: int = 6,
+    ) -> list[Message]:
+        return (
+            self.db.query(Message)
+            .filter(
+                Message.conversation_id == conversation_id,
+            )
+            .order_by(Message.created_at.desc())
+            .limit(limit)
+            .all()[::-1]
+        )
