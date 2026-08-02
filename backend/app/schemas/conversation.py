@@ -17,6 +17,7 @@ class MessageResponse(BaseModel):
 class ConversationResponse(BaseModel):
     id: UUID
     title: str
+    document_id: UUID
     created_at: datetime
     messages: list[MessageResponse]
 
@@ -26,6 +27,8 @@ class ConversationResponse(BaseModel):
 class ConversationListItem(BaseModel):
     id: UUID
     title: str
+    document_id: UUID
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
