@@ -40,6 +40,10 @@ async function request<T>(
   });
 
   if (!response.ok) {
+    if (response.status === 401 && typeof window !== "undefined") {
+      window.location.href = "/login";
+    }
+
     const error = await response.json().catch(() => ({
       message: "An unexpected error occurred",
     }));
@@ -67,6 +71,10 @@ export const apiClient = {
       });
 
       if (!response.ok) {
+        if (response.status === 401 && typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
+
         const error = await response.json().catch(() => ({
           message: "Upload failed",
         }));
@@ -83,6 +91,11 @@ export const apiClient = {
     list: (): Promise<Document[]> =>
       request<Document[]>("/documents", {
         method: "GET",
+      }),
+
+    delete: (id: string): Promise<void> =>
+      request<void>(`/documents/${id}`, {
+        method: "DELETE",
       }),
   },
 
