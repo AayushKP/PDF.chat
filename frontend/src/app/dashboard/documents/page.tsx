@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   useDocuments,
   useUploadDocument,
+  useDeleteDocument,
   useConversations,
 } from "@/hooks/use-chat-data";
 import {
@@ -17,14 +18,16 @@ import {
   List,
   Loader2,
   Plus,
-  MessageSquare,
+  Trash2,
   Sparkles,
-  Layers,
-  Calendar,
-  AlertCircle,
-  FileCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { formatFilename, formatDate } from "@/lib/utils";
 import type { Document } from "@/types";
 
@@ -35,10 +38,9 @@ export default function DocumentsPage() {
   const { data: documents = [], isLoading: isLoadingDocs } = useDocuments();
   const { data: conversations = [] } = useConversations();
   const uploadMutation = useUploadDocument();
+  const deleteDocumentMutation = useDeleteDocument();
 
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterType, setFilterType] = useState<string>("all");
-  const [filterModified, setFilterModified] = useState<string>("all");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   const handleFileUpload = (file: File) => {
@@ -49,15 +51,25 @@ export default function DocumentsPage() {
     const formData = new FormData();
     formData.append("file", file);
 
-    uploadMutation.mutate(formData);
+    uploadMutation.mutate(formData, {
+      onSuccess: (newDoc) => {
+        router.push(`/dashboard?documentId=${newDoc.id}`);
+      },
+    });
   };
 
   const handleDocumentClick = (doc: Document) => {
-    // Navigate to ChatGPT-like chat view with this document attached!
     router.push(`/dashboard?documentId=${doc.id}`);
   };
 
-  // Filter documents by search term
+  const handleDeleteDocument = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (confirm("Are you sure you want to delete this document? It will be removed from your database and vector search.")) {
+      deleteDocumentMutation.mutate(id);
+    }
+  };
+
   const filteredDocs = documents.filter((doc) =>
     formatFilename(doc.filename)
       .toLowerCase()
@@ -79,11 +91,11 @@ export default function DocumentsPage() {
         }}
       />
 
-      {/* Header bar matching Google Drive */}
+      {/* Header bar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="space-y-1">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Recent
+            Recent Documents
           </h1>
           <p className="text-xs text-muted-foreground">
             Your uploaded PDF documents & AI knowledge base
@@ -125,7 +137,7 @@ export default function DocumentsPage() {
         </div>
       </div>
 
-      {/* Filter Chips Bar (Exact Google Drive Style from Image 2) */}
+      {/* Filter Chips Bar */}
       <div className="flex items-center justify-between border-b border-border/50 pb-3">
         <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
           <button className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted/60 transition-colors shadow-sm">
@@ -149,7 +161,7 @@ export default function DocumentsPage() {
           </button>
         </div>
 
-        {/* Grid / List View Toggle */}
+        {/* View Mode Toggle */}
         <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1 shadow-sm shrink-0">
           <button
             onClick={() => setViewMode("grid")}
@@ -182,7 +194,7 @@ export default function DocumentsPage() {
           <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
         </div>
       ) : documents.length === 0 ? (
-        /* Empty State: No documents uploaded */
+        /* Empty State */
         <div className="rounded-2xl border border-dashed border-border bg-muted/20 p-16 text-center">
           <div className="mx-auto flex max-w-md flex-col items-center gap-3">
             <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-red-500/10 text-red-500 shadow-sm">
@@ -212,7 +224,7 @@ export default function DocumentsPage() {
           </p>
         </div>
       ) : (
-        /* Google Drive Cards Grid Layout (Matching Image 2) */
+        /* Google Drive Cards Grid Layout */
         <div className="space-y-6">
           <div>
             <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-4">
@@ -223,9 +235,6 @@ export default function DocumentsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
                 {filteredDocs.map((doc) => {
                   const cleanName = formatFilename(doc.filename);
-                  const linkedConvs = conversations.filter(
-                    (c) => c.document_id === doc.id
-                  );
 
                   return (
                     <div
@@ -233,10 +242,9 @@ export default function DocumentsPage() {
                       onClick={() => handleDocumentClick(doc)}
                       className="group relative flex flex-col justify-between rounded-2xl border border-border bg-card p-4 transition-all duration-200 hover:shadow-md hover:border-primary/40 cursor-pointer space-y-3"
                     >
-                      {/* Top Card Row: Red PDF Badge + Title + 3 dots menu */}
+                      {/* Top Card Row */}
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 truncate">
-                          {/* Red PDF Icon Badge */}
                           <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-500 text-white shrink-0 font-bold text-[10px]">
                             PDF
                           </div>
@@ -248,18 +256,30 @@ export default function DocumentsPage() {
                           </span>
                         </div>
 
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                          }}
-                          className="text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors shrink-0"
-                          title="More options"
-                        >
-                          <MoreVertical className="h-4 w-4" />
-                        </button>
+                        {/* 3-dots Menu with Delete Option */}
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <button
+                              onClick={(e) => e.stopPropagation()}
+                              className="text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors shrink-0"
+                              title="More options"
+                            >
+                              <MoreVertical className="h-4 w-4" />
+                            </button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-40">
+                            <DropdownMenuItem
+                              onClick={(e) => handleDeleteDocument(e, doc.id)}
+                              className="text-destructive focus:text-destructive cursor-pointer gap-2 text-xs"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              <span>Delete File</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
 
-                      {/* Card Middle: Preview Thumbnail Box */}
+                      {/* Card Middle: Preview Box */}
                       <div className="relative flex h-32 w-full items-center justify-center rounded-xl bg-muted/40 border border-border/40 p-4 transition-colors group-hover:bg-muted/60">
                         <div className="flex flex-col items-center gap-2 text-center">
                           <FileText className="h-10 w-10 text-red-500/80 group-hover:scale-110 transition-transform" />
@@ -276,7 +296,7 @@ export default function DocumentsPage() {
                         </div>
                       </div>
 
-                      {/* Card Bottom Row: Metadata & Chat Trigger */}
+                      {/* Card Bottom Row */}
                       <div className="flex items-center justify-between pt-1 text-[11px] text-muted-foreground">
                         <span>{formatDate(doc.created_at)}</span>
                         <span className="flex items-center gap-1 font-semibold text-primary group-hover:underline">
@@ -313,18 +333,28 @@ export default function DocumentsPage() {
                         </div>
                       </div>
 
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDocumentClick(doc);
-                        }}
-                        className="gap-1.5 text-xs text-primary"
-                      >
-                        <Sparkles className="h-3.5 w-3.5" />
-                        <span>Chat</span>
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDocumentClick(doc);
+                          }}
+                          className="gap-1.5 text-xs text-primary"
+                        >
+                          <Sparkles className="h-3.5 w-3.5" />
+                          <span>Chat</span>
+                        </Button>
+
+                        <button
+                          onClick={(e) => handleDeleteDocument(e, doc.id)}
+                          className="text-muted-foreground hover:text-destructive p-1.5 rounded-md transition-colors"
+                          title="Delete file"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      </div>
                     </div>
                   );
                 })}

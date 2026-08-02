@@ -94,6 +94,25 @@ async def get_conversation(
     )
 
 
+@router.delete("/documents/{document_id}")
+async def delete_document(
+    document_id: uuid.UUID,
+    current_user: CurrentUser = Depends(get_current_user),
+    service: DocumentService = Depends(get_document_service),
+):
+    try:
+        service.delete_document(
+            document_id=document_id,
+            user_id=current_user.id,
+        )
+        return {"message": "Document deleted."}
+    except ValueError as e:
+        raise HTTPException(
+            status_code=404,
+            detail=str(e),
+        )
+
+
 @router.delete("/conversations/{conversation_id}")
 async def delete_conversation(
     conversation_id: uuid.UUID,

@@ -19,6 +19,18 @@ export function useUploadDocument() {
   });
 }
 
+export function useDeleteDocument() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => apiClient.documents.delete(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["conversations"] });
+    },
+  });
+}
+
 export function useConversations() {
   return useQuery({
     queryKey: ["conversations"],

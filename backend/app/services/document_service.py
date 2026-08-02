@@ -68,3 +68,43 @@ class DocumentService:
         user_id,
     ):
         return self.repository.list_by_user(user_id)
+
+    def delete_document(
+        self,
+        *,
+        document_id: uuid.UUID,
+        user_id: str,
+    ):
+        document = self.repository.get_by_id(document_id)
+        if document is None or document.user_id != user_id:
+            raise ValueError("Document not found.")
+
+        # Delete local file if it exists
+        file_path = UPLOAD_DIR / document.filename
+        if file_path.exists():
+            try:
+                file_path.unlink()
+            except Exception:
+                pass
+
+        # Delete vectors from Qdrant if possible
+        try:
+            from app.config import settings
+            from app.rag.qdrant_client import client
+            from qdrant_client.http import models
+
+            client.delete(
+                collection_name=settings.COLLECTION_NAME,
+                points_selector=models.Filter(
+                    must=[
+                        models.FieldCondition(
+                            key="document_id",
+                            match=models.MatchValue(value=str(document_id)),
+                        )
+                    ]
+                ),
+            )
+        except Exception:
+            pass
+
+        self.repository.delete(document)
