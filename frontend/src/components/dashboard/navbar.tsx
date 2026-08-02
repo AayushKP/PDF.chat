@@ -13,11 +13,13 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SidebarToggle } from "@/components/dashboard/sidebar";
-import { LogOut, ChevronDown } from "lucide-react";
+import { useTheme } from "@/providers/theme-provider";
+import { LogOut, ChevronDown, Sun, Moon, Laptop } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export function Navbar() {
   const { data: session, isPending } = useSession();
+  const { theme, setTheme } = useTheme();
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -46,8 +48,23 @@ export function Navbar() {
 
       <div className="flex-1" />
 
-      {/* User section */}
       <div className="flex items-center gap-3">
+        {/* Dark / Light Theme Quick Toggle Button */}
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          className="rounded-lg text-muted-foreground hover:text-foreground"
+          title={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
+        >
+          {theme === "dark" ? (
+            <Sun className="h-4 w-4" />
+          ) : (
+            <Moon className="h-4 w-4" />
+          )}
+        </Button>
+
+        {/* User section */}
         {isPending ? (
           <div className="flex items-center gap-3">
             <Skeleton className="h-8 w-8 rounded-full" />
@@ -88,6 +105,32 @@ export function Navbar() {
                 </div>
               </DropdownMenuLabel>
               <DropdownMenuSeparator />
+
+              {/* Theme Options inside menu */}
+              <DropdownMenuItem
+                onClick={() => setTheme("light")}
+                className="cursor-pointer"
+              >
+                <Sun className="mr-2 h-4 w-4" />
+                <span>Light mode</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setTheme("dark")}
+                className="cursor-pointer"
+              >
+                <Moon className="mr-2 h-4 w-4" />
+                <span>Dark mode</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => setTheme("system")}
+                className="cursor-pointer"
+              >
+                <Laptop className="mr-2 h-4 w-4" />
+                <span>System default</span>
+              </DropdownMenuItem>
+
+              <DropdownMenuSeparator />
+
               <DropdownMenuItem
                 onClick={handleLogout}
                 className="text-destructive focus:text-destructive cursor-pointer"

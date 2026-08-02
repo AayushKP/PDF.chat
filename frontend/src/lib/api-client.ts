@@ -1,4 +1,11 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+import type {
+  Document,
+  Conversation,
+  ChatResponse,
+} from "@/types";
+
+const API_BASE_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
 type RequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
@@ -7,7 +14,7 @@ type RequestOptions = Omit<RequestInit, "body"> & {
 export class ApiError extends Error {
   constructor(
     public status: number,
-    message: string,
+    message: string
   ) {
     super(message);
     this.name = "ApiError";
@@ -16,7 +23,7 @@ export class ApiError extends Error {
 
 async function request<T>(
   endpoint: string,
-  options: RequestOptions = {},
+  options: RequestOptions = {}
 ): Promise<T> {
   const { body, headers: customHeaders, ...restOptions } = options;
 
@@ -39,7 +46,7 @@ async function request<T>(
 
     throw new ApiError(
       response.status,
-      error.message || error.detail || "Request failed",
+      error.message || error.detail || "Request failed"
     );
   }
 
@@ -52,7 +59,7 @@ async function request<T>(
 
 export const apiClient = {
   documents: {
-    upload: async (formData: FormData) => {
+    upload: async (formData: FormData): Promise<Document> => {
       const response = await fetch(`${API_BASE_URL}/documents`, {
         method: "POST",
         credentials: "include",
@@ -66,15 +73,15 @@ export const apiClient = {
 
         throw new ApiError(
           response.status,
-          error.message || error.detail || "Upload failed",
+          error.message || error.detail || "Upload failed"
         );
       }
 
       return response.json();
     },
 
-    list: () =>
-      request("/documents", {
+    list: (): Promise<Document[]> =>
+      request<Document[]>("/documents", {
         method: "GET",
       }),
   },
@@ -84,25 +91,25 @@ export const apiClient = {
       question: string;
       document_id?: string;
       conversation_id?: string;
-    }) =>
-      request("/chat", {
+    }): Promise<ChatResponse> =>
+      request<ChatResponse>("/chat", {
         method: "POST",
         body: payload,
       }),
   },
 
   conversations: {
-    list: () =>
-      request("/conversations", {
+    list: (): Promise<Conversation[]> =>
+      request<Conversation[]>("/conversations", {
         method: "GET",
       }),
 
-    get: (id: string) =>
-      request(`/conversations/${id}`, {
+    get: (id: string): Promise<Conversation> =>
+      request<Conversation>(`/conversations/${id}`, {
         method: "GET",
       }),
 
-    delete: (id: string) =>
+    delete: (id: string): Promise<void> =>
       request<void>(`/conversations/${id}`, {
         method: "DELETE",
       }),

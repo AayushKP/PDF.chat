@@ -22,7 +22,7 @@ export function DashboardShell({ children }: DashboardShellProps) {
         {/* Main content area */}
         <div className="flex flex-1 flex-col overflow-hidden">
           <Navbar />
-          <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+          <main className="flex flex-1 flex-col overflow-hidden p-0">
             {children}
           </main>
         </div>
