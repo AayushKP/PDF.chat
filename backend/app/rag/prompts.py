@@ -21,3 +21,18 @@ Context:
 
 {context}
 """
+
+QUESTION_REWRITE_PROMPT = """
+You are a query rewriting assistant.
+
+Given the previous conversation and the latest user message,
+rewrite the user's latest question into a complete standalone
+question that contains all missing context.
+
+Rules:
+- Do not answer the question.
+- Only rewrite it.
+- Preserve the user's intent.
+- If the question is already standalone,
+  return it unchanged.
+"""
