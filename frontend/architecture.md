@@ -62,3 +62,53 @@ This document provides a complete summary of every file in the frontend codebase
 - **`src/components/ui/sheet.tsx`**: Radix UI Dialog-backed sliding drawer sheet for mobile navigation.
 - **`src/components/ui/skeleton.tsx`**: Pulse animation placeholder for loading states.
 - **`src/components/ui/tooltip.tsx`**: Accessible tooltip component structure.
+
+---
+
+## 6. Local Setup Guide
+
+Follow these steps to run the frontend application locally:
+
+### 1. Prerequisites
+
+- Node.js 18+ (Node 20+ recommended)
+- A package manager: `npm` (comes with Node), `pnpm`, or `yarn`
+
+### 2. Installation
+
+Navigate to the frontend directory and install dependencies:
+
+```bash
+cd frontend
+npm install
+```
+
+### 3. Environment Setup
+
+Create a `.env.local` file in the `frontend/` directory. You can copy the values from `.env.example`:
+
+```env
+# Better Auth Secret (used for signing sessions)
+BETTER_AUTH_SECRET=your-secret-key-change-this-in-production
+
+# Google OAuth credentials (get these from Google Cloud Console)
+GOOGLE_CLIENT_ID=your-google-client-id
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+# PostgreSQL Database URL (Better Auth persistence)
+DATABASE_URL=postgresql://user:password@host:5432/database
+
+# App URLs
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+### 4. Run the Server
+
+Start the Next.js development server:
+
+```bash
+npm run dev
+```
+
+The frontend application will be available at [http://localhost:3000](http://localhost:3000).

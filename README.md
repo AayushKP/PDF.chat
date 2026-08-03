@@ -1,205 +1,38 @@
-# RAG Chat Backend
+# PDF.chat - Full-Stack Conversational RAG Platform
 
-A production-oriented Retrieval-Augmented Generation (RAG) backend built with FastAPI, PostgreSQL, Qdrant, LangChain, and Gemini.
-
----
-
-## Tech Stack
-
-- FastAPI
-- PostgreSQL (Supabase)
-- SQLAlchemy + Alembic
-- Qdrant Vector Database
-- LangChain
-- Gemini 2.5 Flash
-- Repository & Service Pattern
+`PDF.chat` is a modern, production-oriented Retrieval-Augmented Generation (RAG) platform. It allows users to authenticate via Google OAuth, upload PDF documents, and have interactive, context-aware conversations grounded in their document's content.
 
 ---
 
-# Current Architecture
+## 1. Project Architecture & Structure
 
-```
-Frontend
-    │
-    ▼
-FastAPI Routes
-    │
-    ├──────────────┐
-    ▼              ▼
-DocumentService   ChatService
-    │              │
-    ▼              ▼
-Repositories   ConversationRepository
-    │              │
-    ▼              ▼
- PostgreSQL     PostgreSQL
-       │
-       ▼
-    RAG Pipeline
-       │
-       ▼
-    Qdrant + Gemini
-```
+The repository is structured as a monorepo containing two main application components:
+
+- **Backend (FastAPI)**: Implements database integrations (PostgreSQL, Qdrant), PDF document chunking and embedding generation, auth session verification, query-rewriting, and conversational QA pipelines. 
+  - Details: [backend/architecture.md](file:///c:/Users/ayush/Desktop/usecase/projects/chatwpdf/backend/architecture.md)
+- **Frontend (Next.js 15)**: Provides the user interface utilizing React, Tailwind CSS (v4), Zustand for state management, Radix UI primitives, TanStack Query for server state caching, and Better Auth client-side SDK.
+  - Details: [frontend/architecture.md](file:///c:/Users/ayush/Desktop/usecase/projects/chatwpdf/frontend/architecture.md)
+
+## 2. Core Application Flows
+
+![System Flow Diagram](docs/images/system_flow_diagram.png)
+
+### A. Authentication Flow
+1. **Google OAuth Initiation**: The user navigates to the login page and clicks **Sign in with Google**.
+2. **Session Persistence**: Next.js delegates authentication to **Better Auth** API routes, which coordinate with Google OAuth. Upon successful verification, user metadata and session details are persisted to the PostgreSQL database.
+3. **Session Guards**: Client-side page navigation is protected using a custom Next.js Edge proxy middleware ([src/proxy.ts](file:///c:/Users/ayush/Desktop/usecase/projects/chatwpdf/frontend/src/proxy.ts)) and client auth guards ([src/features/auth/auth-guard.tsx](file:///c:/Users/ayush/Desktop/usecase/projects/chatwpdf/frontend/src/features/auth/auth-guard.tsx)).
+4. **Backend Verification**: Every backend request is checked by the FastAPI backend using a dependency. It intercepts the user session cookie, verifies it directly against the Better Auth session validation endpoint, and extracts the authenticated User ID.
 
 ---
 
-# Upload Flow
+## 3. Local Setup Guide
 
-```
-Upload PDF
-    │
-    ▼
-POST /documents
-    │
-    ▼
-Save PDF locally
-(upload/)
-    │
-    ▼
-Create document metadata
-(PostgreSQL)
-    │
-    ▼
-Parse PDF
-    │
-    ▼
-Split into chunks
-    │
-    ▼
-Generate embeddings
-    │
-    ▼
-Store chunks in Qdrant
-    │
-    ▼
-Update document status
-(READY)
-```
+Both the backend and frontend components require distinct setups, packages, and environment configurations:
 
-### PostgreSQL stores
+### Backend Setup
+For backend system requirements, virtual environment setup, library installations, database migrations (Alembic), and Uvicorn runtime commands, please refer specifically to the:
+👉 **[Backend Architecture & Setup Guide](file:///c:/Users/ayush/Desktop/usecase/projects/chatwpdf/backend/architecture.md)**
 
-- User metadata
-- Document metadata
-- Conversation metadata
-- Chat messages
-
-### Qdrant stores
-
-- Document embeddings
-- Chunk text
-- Page numbers
-- Document ID
-- User ID
-
----
-
-# Chat Flow (Current)
-
-```
-User Question
-    │
-    ▼
-POST /chat
-    │
-    ▼
-ChatService
-    │
-    ▼
-Save user message
-(PostgreSQL)
-    │
-    ▼
-Retrieve relevant chunks
-(Qdrant)
-    │
-    ▼
-Build prompt
-    │
-    ▼
-Gemini
-    │
-    ▼
-Save assistant response
-(PostgreSQL)
-    │
-    ▼
-Return answer
-```
-
----
-
-# Current Features
-
-- PDF Upload
-- Automatic Chunking
-- Embedding Generation
-- Vector Search
-- Context-aware Answer Generation
-- Conversation Storage
-- Message History Storage
-- Document Metadata Storage
-- Multi-document support per user
-
----
-
-# Current Limitation
-
-Conversation history is **stored**, but it is **not used during retrieval**.
-
-Current retrieval uses only:
-
-```
-Latest User Question
-        +
-Selected Document ID
-```
-
-Example:
-
-```
-User:
-What is Kubernetes?
-
-Assistant:
-...
-
-User:
-What does it mean?
-```
-
-The retriever searches using only:
-
-```
-"What does it mean?"
-```
-
-It does **not** use previous conversation history to rewrite or disambiguate the question.
-
----
-
-# Next Milestones
-
-## 1. Google Authentication
-
-- Google OAuth
-- JWT verification
-- Remove `DUMMY_USER_ID`
-
-## 2. Conversational RAG
-
-- Load recent conversation history
-- Rewrite follow-up questions into standalone questions
-- Retrieve using the rewritten question
-- Improve follow-up question accuracy
-
-## 3. Streaming Responses
-
-- Server-Sent Events (SSE)
-- Token-by-token response streaming
-
-## 4. Production Improvements
-
-- Background document processing
-- Better error handling
-- Rate limiting
-- Logging & monitoring
+### Frontend Setup
+For frontend Node.js environment requirements, npm package installation, Next.js environment configurations (`.env.local`), and local development server commands, please refer specifically to the:
+👉 **[Frontend Architecture & Setup Guide](file:///c:/Users/ayush/Desktop/usecase/projects/chatwpdf/frontend/architecture.md)**
