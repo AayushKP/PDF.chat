@@ -131,6 +131,10 @@ export function ChatInterface({
       alert("Only PDF files are supported.");
       return;
     }
+    if (file.size > 30 * 1024 * 1024) {
+      alert("File size exceeds 30MB limit.");
+      return;
+    }
     const formData = new FormData();
     formData.append("file", file);
 

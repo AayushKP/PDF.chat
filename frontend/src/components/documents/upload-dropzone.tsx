@@ -26,8 +26,8 @@ export function UploadDropzone({ onUploadSuccess, compact = false }: UploadDropz
       return;
     }
 
-    if (file.size > 25 * 1024 * 1024) {
-      setError("File size exceeds 25MB limit.");
+    if (file.size > 30 * 1024 * 1024) {
+      setError("File size exceeds 30MB limit.");
       return;
     }
 
@@ -155,7 +155,7 @@ export function UploadDropzone({ onUploadSuccess, compact = false }: UploadDropz
                 Click to upload or drag & drop PDF here
               </p>
               <p className="text-xs text-muted-foreground">
-                Supports PDF files up to 25MB
+                Supports PDF files up to 30MB
               </p>
             </div>
           </div>
