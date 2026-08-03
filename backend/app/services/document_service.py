@@ -1,21 +1,21 @@
-import shutil
+import tempfile
 import uuid
-from pathlib import Path
 
+from app.config import settings
 from app.db.models import DocumentStatus
 from app.rag.ingestion import ingest_pdf
 from app.repositories.document_repository import DocumentRepository
-
-UPLOAD_DIR = Path("upload")
-UPLOAD_DIR.mkdir(exist_ok=True)
+from app.storage.service import StorageService
 
 
 class DocumentService:
     def __init__(
         self,
         repository: DocumentRepository,
+        storage: StorageService,
     ):
         self.repository = repository
+        self.storage = storage
 
     def upload(
         self,
@@ -23,24 +23,73 @@ class DocumentService:
         file,
         user_id,
     ):
-        filename = f"{uuid.uuid4()}_{file.filename}"
+        # --------------------------
+        # Validation
+        # --------------------------
 
-        file_path = UPLOAD_DIR / filename
+        max_size = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
 
-        with file_path.open("wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+        file.file.seek(0, 2)
+        file_size = file.file.tell()
+        file.file.seek(0)
+
+        if file_size == 0:
+            raise ValueError("File is empty.")
+
+        if file_size > max_size:
+            raise ValueError(
+                f"Maximum upload size is {settings.MAX_UPLOAD_SIZE_MB} MB."
+            )
+
+        if file.content_type != "application/pdf":
+            raise ValueError("Only PDF files are supported.")
+
+        # --------------------------
+        # Read once
+        # --------------------------
+
+        file_bytes = file.file.read()
+        file.file.seek(0)
+
+        content_hash = self.storage.calculate_hash(file_bytes)
+
+        document_key = self.storage.generate_document_key(
+            file.filename,
+        )
+
+        self.storage.upload(
+            file=file,
+            key=document_key,
+        )
+
+        document_url = self.storage.get_document_url(
+            document_key,
+        )
 
         document = self.repository.create(
             user_id=user_id,
-            filename=filename,
+            filename=file.filename,
+            document_key=document_key,
+            document_url=document_url,
+            file_size=file_size,
+            mime_type=file.content_type,
+            content_hash=content_hash,
         )
 
         try:
-            result = ingest_pdf(
-                path=str(file_path),
-                document_id=str(document.id),
-                user_id=str(user_id),
-            )
+            # Temporary until ingest_pdf() is refactored
+            with tempfile.NamedTemporaryFile(
+                suffix=".pdf",
+                delete=True,
+            ) as temp_file:
+                temp_file.write(file_bytes)
+                temp_file.flush()
+
+                result = ingest_pdf(
+                    path=temp_file.name,
+                    document_id=str(document.id),
+                    user_id=str(user_id),
+                )
 
             self.repository.update_counts(
                 document=document,
@@ -61,13 +110,19 @@ class DocumentService:
                 status=DocumentStatus.FAILED,
             )
 
+            self.storage.delete(
+                key=document.document_key,
+            )
+
             raise
 
     def list_documents(
         self,
         user_id,
     ):
-        return self.repository.list_by_user(user_id)
+        return self.repository.list_by_user(
+            user_id,
+        )
 
     def delete_document(
         self,
@@ -75,23 +130,18 @@ class DocumentService:
         document_id: uuid.UUID,
         user_id: str,
     ):
-        document = self.repository.get_by_id(document_id)
+        document = self.repository.get_by_id(
+            document_id,
+        )
+
         if document is None or document.user_id != user_id:
             raise ValueError("Document not found.")
 
-        # Delete local file if it exists
-        file_path = UPLOAD_DIR / document.filename
-        if file_path.exists():
-            try:
-                file_path.unlink()
-            except Exception:
-                pass
-
-        # Delete vectors from Qdrant if possible
         try:
+            from qdrant_client.http import models
+
             from app.config import settings
             from app.rag.qdrant_client import client
-            from qdrant_client.http import models
 
             client.delete(
                 collection_name=settings.COLLECTION_NAME,
@@ -99,7 +149,9 @@ class DocumentService:
                     must=[
                         models.FieldCondition(
                             key="document_id",
-                            match=models.MatchValue(value=str(document_id)),
+                            match=models.MatchValue(
+                                value=str(document.id),
+                            ),
                         )
                     ]
                 ),
@@ -107,4 +159,10 @@ class DocumentService:
         except Exception:
             pass
 
-        self.repository.delete(document)
+        self.storage.delete(
+            key=document.document_key,
+        )
+
+        self.repository.delete(
+            document,
+        )
