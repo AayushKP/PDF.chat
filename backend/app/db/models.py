@@ -73,6 +73,28 @@ class Document(Base):
 
     chunk_count: Mapped[int] = mapped_column(Integer)
 
+    document_key: Mapped[str] = mapped_column(
+        String,
+        unique=True,
+    )
+
+    document_url: Mapped[str] = mapped_column(
+        String,
+    )
+
+    file_size: Mapped[int] = mapped_column(
+        Integer,
+    )
+
+    mime_type: Mapped[str] = mapped_column(
+        String,
+    )
+
+    content_hash: Mapped[str] = mapped_column(
+        String(64),
+        index=True,
+    )
+
     status: Mapped[DocumentStatus] = mapped_column(
         SQLEnum(DocumentStatus),
         default=DocumentStatus.PROCESSING,
