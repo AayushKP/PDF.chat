@@ -9,17 +9,19 @@ export function useSessionQuery() {
       const res = await authClient.getSession();
       return res.data;
     },
-    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
+    staleTime: Infinity,          // Keep session cache valid permanently during client lifecycle
+    refetchOnWindowFocus: false,  // Do not refetch on app/tab switch focus
+    refetchOnMount: false,        // Do not refetch when components mount
+    refetchOnReconnect: false,    // Do not refetch on reconnect
     retry: false,
   });
 }
 
-export function useDocuments() {
+export function useDocuments(options?: { refetchInterval?: number | false | ((query: any) => number | false) }) {
   return useQuery({
     queryKey: ["documents"],
     queryFn: () => apiClient.documents.list(),
+    ...options,
   });
 }
 

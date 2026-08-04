@@ -14,26 +14,58 @@ export default function DashboardPage() {
   const documentIdParam = searchParams.get("documentId");
   const isNewChat = searchParams.get("new") === "true";
 
-  const { data: documents = [] } = useDocuments();
-  const { data: activeConversation } = useConversation(conversationIdParam);
-
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
   const [createdConversationId, setCreatedConversationId] = useState<string | null>(null);
+
+  const { data: activeConversation } = useConversation(conversationIdParam);
+
+  const { data: documents = [] } = useDocuments({
+    refetchInterval: (query: any) => {
+      const docs = (query.state.data ?? []) as Document[];
+      
+      // Determine the active document ID dynamically from state or URL parameters
+      const activeDocId =
+        selectedDocument?.id ||
+        activeConversation?.document_id ||
+        documentIdParam;
+
+      if (!activeDocId) return false;
+
+      // Find the active document in the current query's fetched list
+      const activeDocInQuery =
+        docs.find((d: Document) => d.id === activeDocId) ||
+        (selectedDocument?.id === activeDocId ? selectedDocument : null);
+
+      if (activeDocInQuery?.status !== "PROCESSING") return false;
+
+      const elapsedMs = activeDocInQuery.created_at
+        ? Date.now() - new Date(activeDocInQuery.created_at).getTime()
+        : 0;
+
+      // Fast polling (500ms) for the first 5 seconds after upload, otherwise back off to 3000ms
+      return elapsedMs < 5000 ? 500 : 3000;
+    },
+  });
+
+  // Sync active document with the list to capture background status updates
+  const resolvedSelectedDoc = selectedDocument
+    ? (documents as Document[]).find((d: Document) => d.id === selectedDocument.id) || selectedDocument
+    : null;
+
+  const activeDoc = isNewChat
+    ? resolvedSelectedDoc
+    : (resolvedSelectedDoc ||
+        (activeConversation?.document_id
+          ? (documents as Document[]).find((d: Document) => d.id === activeConversation.document_id) || null
+          : null) ||
+        (documentIdParam
+          ? (documents as Document[]).find((d: Document) => d.id === documentIdParam) || null
+          : null));
 
   // Derived state without useEffect
   const activeConversationId = isNewChat
     ? null
     : (createdConversationId || conversationIdParam);
-
-  const activeDoc = isNewChat
-    ? selectedDocument
-    : (selectedDocument ||
-        (activeConversation?.document_id
-          ? documents.find((d) => d.id === activeConversation.document_id) || null
-          : null) ||
-        (documentIdParam
-          ? documents.find((d) => d.id === documentIdParam) || null
-          : null));
 
   const handleNewChat = () => {
     setSelectedDocument(null);
