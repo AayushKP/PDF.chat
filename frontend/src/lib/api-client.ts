@@ -5,7 +5,9 @@ import type {
 } from "@/types";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+  typeof window !== "undefined"
+    ? "/api/backend"
+    : (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000");
 
 type RequestOptions = Omit<RequestInit, "body"> & {
   body?: unknown;
@@ -41,7 +43,11 @@ async function request<T>(
 
   if (!response.ok) {
     if (response.status === 401 && typeof window !== "undefined") {
-      window.location.href = "/login";
+      import("@/lib/auth-client").then(({ signOut }) => {
+        signOut().catch(() => {}).finally(() => {
+          window.location.href = "/login";
+        });
+      });
     }
 
     const error = await response.json().catch(() => ({
@@ -72,7 +78,11 @@ export const apiClient = {
 
       if (!response.ok) {
         if (response.status === 401 && typeof window !== "undefined") {
-          window.location.href = "/login";
+          import("@/lib/auth-client").then(({ signOut }) => {
+            signOut().catch(() => {}).finally(() => {
+              window.location.href = "/login";
+            });
+          });
         }
 
         const error = await response.json().catch(() => ({
