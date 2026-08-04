@@ -1,3 +1,4 @@
+import os
 import tempfile
 import uuid
 
@@ -80,16 +81,21 @@ class DocumentService:
             # Temporary until ingest_pdf() is refactored
             with tempfile.NamedTemporaryFile(
                 suffix=".pdf",
-                delete=True,
+                delete=False,
             ) as temp_file:
                 temp_file.write(file_bytes)
                 temp_file.flush()
 
+            temp_path = temp_file.name
+
+            try:
                 result = ingest_pdf(
-                    path=temp_file.name,
+                    path=temp_path,
                     document_id=str(document.id),
                     user_id=str(user_id),
                 )
+            finally:
+                os.remove(temp_path)
 
             self.repository.update_counts(
                 document=document,
