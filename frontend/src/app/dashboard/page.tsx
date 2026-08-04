@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useDocuments, useConversation } from "@/hooks/use-chat-data";
 import { ChatInterface } from "@/components/chat/chat-interface";
@@ -18,48 +18,41 @@ export default function DashboardPage() {
   const { data: activeConversation } = useConversation(conversationIdParam);
 
   const [selectedDocument, setSelectedDocument] = useState<Document | null>(null);
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(conversationIdParam);
+  const [createdConversationId, setCreatedConversationId] = useState<string | null>(null);
 
-  // Sync state with URL params
-  useEffect(() => {
-    if (isNewChat) {
-      setSelectedDocument(null);
-      setActiveConversationId(null);
-    } else if (conversationIdParam) {
-      setActiveConversationId(conversationIdParam);
-    } else if (documentIdParam && documents.length > 0) {
-      const doc = documents.find((d) => d.id === documentIdParam);
-      if (doc) {
-        setSelectedDocument(doc);
-      }
-    }
-  }, [conversationIdParam, documentIdParam, isNewChat, documents]);
+  // Derived state without useEffect
+  const activeConversationId = isNewChat
+    ? null
+    : (createdConversationId || conversationIdParam);
 
-  // When activeConversation loads from URL param, match its document_id to selectedDocument
-  useEffect(() => {
-    if (activeConversation && activeConversation.document_id && documents.length > 0) {
-      const matchedDoc = documents.find((d) => d.id === activeConversation.document_id);
-      if (matchedDoc) {
-        setSelectedDocument(matchedDoc);
-      }
-    }
-  }, [activeConversation, documents]);
+  const activeDoc = isNewChat
+    ? selectedDocument
+    : (selectedDocument ||
+        (activeConversation?.document_id
+          ? documents.find((d) => d.id === activeConversation.document_id) || null
+          : null) ||
+        (documentIdParam
+          ? documents.find((d) => d.id === documentIdParam) || null
+          : null));
 
   const handleNewChat = () => {
     setSelectedDocument(null);
-    setActiveConversationId(null);
+    setCreatedConversationId(null);
     router.push("/dashboard?new=true");
   };
 
   const handleConversationCreated = (newId: string) => {
-    setActiveConversationId(newId);
-    router.push(`/dashboard?conversationId=${newId}`);
+    setCreatedConversationId(newId);
+    if (typeof window !== "undefined") {
+      window.history.replaceState(null, "", `/dashboard?conversationId=${newId}`);
+    }
+    router.replace(`/dashboard?conversationId=${newId}`, { scroll: false });
   };
 
   return (
     <div className="flex h-[calc(100vh-4rem)] w-full flex-col overflow-hidden bg-background">
       <ChatInterface
-        activeDocument={selectedDocument}
+        activeDocument={activeDoc}
         conversationId={activeConversationId}
         onNewChat={handleNewChat}
         onSelectDocument={setSelectedDocument}

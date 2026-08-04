@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { Upload, FileText, Loader2, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Upload, Loader2, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useUploadDocument } from "@/hooks/use-chat-data";
 import { formatFilename } from "@/lib/utils";

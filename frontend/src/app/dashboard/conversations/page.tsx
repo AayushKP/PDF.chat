@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useConversations, useDocuments, useDeleteConversation } from "@/hooks/use-chat-data";
 import { MessageSquare, FileText, Trash2, ArrowRight, Clock, Plus, Loader2 } from "lucide-react";

@@ -6,7 +6,6 @@ import {
   useDocuments,
   useUploadDocument,
   useDeleteDocument,
-  useConversations,
 } from "@/hooks/use-chat-data";
 import {
   FileText,
@@ -36,7 +35,6 @@ export default function DocumentsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data: documents = [], isLoading: isLoadingDocs } = useDocuments();
-  const { data: conversations = [] } = useConversations();
   const uploadMutation = useUploadDocument();
   const deleteDocumentMutation = useDeleteDocument();
 

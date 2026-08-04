@@ -50,26 +50,30 @@ export function ChatInterface({
   const uploadDocumentMutation = useUploadDocument();
   const { data: conversationData, isLoading: isLoadingConv } = useConversation(conversationId);
 
-  // Sync conversation messages from backend when conversationId changes
-  useEffect(() => {
-    if (conversationData && conversationData.messages) {
-      const formatted: ChatMessage[] = conversationData.messages.map((m) => ({
-        id: m.id,
-        role: m.role,
-        content: m.content,
-        citations: m.citations,
-        created_at: m.created_at,
-      }));
-      setLocalMessages(formatted);
-    } else if (!conversationId) {
+  const [prevConversationId, setPrevConversationId] = useState<string | null>(conversationId);
+
+  if (conversationId !== prevConversationId) {
+    setPrevConversationId(conversationId);
+    if (!conversationId && !activeDocument) {
       setLocalMessages([]);
     }
-  }, [conversationData, conversationId]);
+  }
+
+  const displayedMessages: ChatMessage[] =
+    conversationId && conversationData?.messages && conversationData.messages.length > 0
+      ? conversationData.messages.map((m) => ({
+          id: m.id,
+          role: m.role,
+          content: m.content,
+          citations: m.citations,
+          created_at: m.created_at,
+        }))
+      : localMessages;
 
   // Scroll to bottom when messages update
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [localMessages, sendChatMutation.isPending]);
+  }, [displayedMessages, sendChatMutation.isPending]);
 
   const handleSend = (textToSend?: string) => {
     const question = textToSend || inputQuestion.trim();
@@ -207,7 +211,7 @@ export function ChatInterface({
           <div className="flex h-full items-center justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : localMessages.length === 0 ? (
+        ) : displayedMessages.length === 0 ? (
           /* Centered ChatGPT Initial / Empty State */
           <div className="flex min-h-full flex-col items-center justify-center px-4 py-6 text-center w-full lg:w-[70%] max-w-5xl mx-auto space-y-6">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-card border border-border shadow-sm text-foreground">
@@ -276,7 +280,7 @@ export function ChatInterface({
         ) : (
           /* Active Conversation Stream - Responsive 70% Layout without Avatars */
           <div className="w-full lg:w-[70%] max-w-5xl mx-auto px-4 sm:px-6 py-6 space-y-10 sm:space-y-12">
-            {localMessages.map((msg, index) => {
+            {displayedMessages.map((msg, index) => {
               const isUser = msg.role === "user";
               return (
                 <div

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { FileText, MessageSquare, Clock, Layers, Sparkles, CheckCircle, AlertTriangle, Search } from "lucide-react";
-import { formatFilename, formatDate } from "@/lib/utils";
+import { FileText, MessageSquare, Layers, CheckCircle, AlertTriangle, Search } from "lucide-react";
+import { formatFilename } from "@/lib/utils";
 import type { Document, Conversation } from "@/types";
 
 interface DocumentGridProps {
