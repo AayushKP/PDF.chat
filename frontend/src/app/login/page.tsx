@@ -1,6 +1,7 @@
 "use client";
 
-import { signIn, useSession } from "@/lib/auth-client";
+import { signIn } from "@/lib/auth-client";
+import { useSessionQuery } from "@/hooks/use-chat-data";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -30,7 +31,7 @@ function GoogleIcon({ className }: { className?: string }) {
 }
 
 export default function LoginPage() {
-  const { data: session, isPending } = useSession();
+  const { data: session, isLoading: isPending } = useSessionQuery();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

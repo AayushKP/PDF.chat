@@ -1,5 +1,20 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
+import { authClient } from "@/lib/auth-client";
+
+export function useSessionQuery() {
+  return useQuery({
+    queryKey: ["session"],
+    queryFn: async () => {
+      const res = await authClient.getSession();
+      return res.data;
+    },
+    staleTime: 5 * 60 * 1000, // Cache for 5 minutes
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+    retry: false,
+  });
+}
 
 export function useDocuments() {
   return useQuery({

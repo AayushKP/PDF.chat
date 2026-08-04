@@ -363,6 +363,20 @@ export function ChatInterface({
             </div>
           )}
 
+          {activeDocument?.status === "PROCESSING" && (
+            <div className="flex items-center gap-2 text-xs text-amber-500 bg-amber-500/10 px-3.5 py-1.5 rounded-xl font-medium w-fit border border-amber-500/20">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <span>Document is still indexing... Please wait.</span>
+            </div>
+          )}
+
+          {activeDocument?.status === "FAILED" && (
+            <div className="flex items-center gap-2 text-xs text-red-500 bg-red-500/10 px-3.5 py-1.5 rounded-xl font-medium w-fit border border-red-500/20">
+              <X className="h-3.5 w-3.5" />
+              <span>Document ingestion failed. Please re-upload.</span>
+            </div>
+          )}
+
           <div className="relative flex items-center rounded-3xl border border-border/80 bg-card shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-all px-3 py-1.5">
             {/* Paperclip attachment button */}
             <Button
@@ -371,7 +385,7 @@ export function ChatInterface({
               size="icon"
               onClick={() => fileInputRef.current?.click()}
               title="Attach PDF file"
-              disabled={uploadDocumentMutation.isPending}
+              disabled={uploadDocumentMutation.isPending || activeDocument?.status === "PROCESSING"}
               className="h-8 w-8 shrink-0 text-muted-foreground hover:text-foreground rounded-full"
             >
               <Paperclip className="h-4 w-4" />
@@ -382,19 +396,27 @@ export function ChatInterface({
               value={inputQuestion}
               onChange={(e) => setInputQuestion(e.target.value)}
               onKeyDown={handleKeyDown}
+              disabled={activeDocument?.status === "PROCESSING" || activeDocument?.status === "FAILED"}
               placeholder={
                 activeDocument
-                  ? `Ask anything about ${formatFilename(activeDocument.filename)}...`
+                  ? activeDocument.status === "PROCESSING"
+                    ? "Indexing document..."
+                    : `Ask anything about ${formatFilename(activeDocument.filename)}...`
                   : "Attach a PDF or type your question..."
               }
               rows={1}
-              className="flex-1 resize-none bg-transparent px-2.5 py-1.5 text-xs sm:text-sm focus:outline-none max-h-32 min-h-[32px] text-foreground"
+              className="flex-1 resize-none bg-transparent px-2.5 py-1.5 text-xs sm:text-sm focus:outline-none max-h-32 min-h-[32px] text-foreground disabled:opacity-50"
             />
 
             {/* Send Button */}
             <Button
               onClick={() => handleSend()}
-              disabled={!inputQuestion.trim() || sendChatMutation.isPending}
+              disabled={
+                !inputQuestion.trim() ||
+                sendChatMutation.isPending ||
+                activeDocument?.status === "PROCESSING" ||
+                activeDocument?.status === "FAILED"
+              }
               size="icon"
               className="h-8 w-8 shrink-0 rounded-full shadow-sm"
             >

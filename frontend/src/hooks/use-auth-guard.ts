@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "@/lib/auth-client";
+import { useSessionQuery } from "@/hooks/use-chat-data";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 
@@ -9,7 +9,7 @@ import { useEffect } from "react";
  * Returns the session data, loading state, and error.
  */
 export function useAuthGuard() {
-  const { data: session, isPending, error } = useSession();
+  const { data: session, isLoading: isPending, error } = useSessionQuery();
   const router = useRouter();
 
   useEffect(() => {
