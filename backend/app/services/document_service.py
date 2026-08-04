@@ -1,6 +1,7 @@
 import os
 import tempfile
 import uuid
+from fastapi import BackgroundTasks
 
 from app.config import settings
 from app.db.models import DocumentStatus
@@ -23,6 +24,7 @@ class DocumentService:
         *,
         file,
         user_id,
+        background_tasks: BackgroundTasks,
     ):
         # --------------------------
         # Validation
@@ -77,8 +79,27 @@ class DocumentService:
             content_hash=content_hash,
         )
 
+        # Queue ingestion in the background to avoid API timeouts
+        background_tasks.add_task(
+            self.process_ingestion,
+            document_id=document.id,
+            user_id=user_id,
+            file_bytes=file_bytes,
+        )
+
+        return document
+
+    def process_ingestion(
+        self,
+        document_id: uuid.UUID,
+        user_id: str,
+        file_bytes: bytes,
+    ):
+        document = self.repository.get_by_id(document_id)
+        if not document:
+            return
+
         try:
-            # Temporary until ingest_pdf() is refactored
             with tempfile.NamedTemporaryFile(
                 suffix=".pdf",
                 delete=False,
@@ -108,19 +129,17 @@ class DocumentService:
                 status=DocumentStatus.READY,
             )
 
-            return document
-
         except Exception:
             self.repository.update_status(
                 document=document,
                 status=DocumentStatus.FAILED,
             )
-
-            self.storage.delete(
-                key=document.document_key,
-            )
-
-            raise
+            try:
+                self.storage.delete(
+                    key=document.document_key,
+                )
+            except Exception:
+                pass
 
     def list_documents(
         self,
