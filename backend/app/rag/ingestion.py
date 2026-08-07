@@ -13,7 +13,7 @@ from app.utils.hash import (
     generate_chunk_uuid,
 )
 
-BATCH_SIZE = 10
+BATCH_SIZE = 50
 
 
 def ingest_pdf(
