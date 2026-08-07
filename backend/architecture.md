@@ -4,22 +4,113 @@ This document describes the backend architecture, data flow pipelines, design ch
 
 ---
 
-## 1. Directory Structure
+## 1. System Architecture & Component Mapping
+
+The backend is built as a layered modular system using **FastAPI** (API routing), **SQLAlchemy** (Relational Database mapping), **Boto3** (Cloudflare R2 storage Client), and **Qdrant** (Vector Search engine).
+
+### A. Architectural Component Diagram
+
+```
+                                +---------------------------+
+                                |  Next.js Client (Browser) |
+                                +-------------+-------------+
+                                              |
+                                              v (HTTP Calls)
++-----------------------------------------------------------------------------------------+
+|  API & AUTH LAYER                                                                       |
+|                                                                                         |
+|   +-----------------------+      +--------------------------+      +-----------------+  |
+|   | app/main.py (Startup) | ---> | app/api/routes.py (API)  | <--- | app/auth/deps   |  |
+|   +-----------------------+      +------------+-------------+      +--------+--------+  |
+|                                               |                             |           |
+|                                               |                             v           |
+|                                               v                     +---------------+   |
+|                                    +---------------------+          | auth/client.py|   |
+|                                    | api/dependencies.py |          +---------------+   |
+|                                    +----------+----------+                              |
++-----------------------------------------------|-----------------------------------------+
+                                                | (Injects Service)
+                                                v
++-----------------------------------------------------------------------------------------+
+|  BUSINESS SERVICE LAYER                                                                 |
+|                                                                                         |
+|       +------------------------------------+      +------------------------------+      |
+|       | app/services/document_service.py   |      | app/services/chat_service.py |      |
+|       +-----------------+------------------+      +-------------+----------------+      |
+|                         |                                       |                       |
++-------------------------|---------------------------------------|-----------------------+
+                          |                                       |
+        +-----------------+-----------------+                     |
+        | (Saves Metadata)                  | (Saves File)        | (Coordinates RAG)
+        v                                   v                     v
++---------------+                   +---------------+     +-------------------------------+
+|  DB / REPO    |                   | STORAGE       |     | RAG ENGINE (app/rag/)         |
+|  LAYER        |                   | INTEGRATION   |     |                               |
+|               |                   |               |     |  +------------+  +----------+ |
+| +-----------+ |                   | +-----------+ |     |  | rewriter.py|  | retriever| |
+| | doc_repo  | |                   | | s3 / R2   | |     |  +-----+------+  +----+-----+ |
+| +-----+-----+ |                   | | upload    | |     |        |              |       |
+|       |       |                   | +-----------+ |     |        v              v       |
+|       v       |                   +---------------+     |  +-----+------+  +----+-----+ |
+| +-----------+ |                                         |  | embedder.py|  | generator| |
+| | Postgres  | | <---------------+ (Saves Counts)        |  +-----+------+  +----+-----+ |
+| | (Supabase)| |                                         |        |              |       |
+| +-----------+ | <---------------+ (Triggers Ingestion)  |        v              v       |
+|               |                                         |  +-----+------+  +----+-----+ |
+| +-----------+ |                                         |  | Qdrant DB  |  | Gemini   | |
+| | conv_repo | |                                         |  +------------+  +----------+ |
+| +-----------+ |                                         |                               |
++---------------+                                         +-------------------------------+
+```
+
+---
+
+### B. Detailed File Index
 
 ```
 backend/
 ├── app/
-│   ├── api/             # API Router endpoints (routes.py, route dependencies)
-│   ├── auth/            # Better Auth integration (session verification & profile extraction)
-│   ├── db/              # SQLAlchemy configuration, DB session management, and tables schema models
-│   ├── rag/             # RAG logic (PDF chunk parser, Qdrant vectors store client, Gemini models connection)
-│   ├── repositories/    # Database Repository pattern layers (SQL query execution)
-│   ├── schemas/         # Pydantic schema validation structures
-│   ├── services/        # Business logic services (chat flow coordinator, PDF upload processor)
-│   ├── main.py          # FastAPI application startup & CORS configuration
-│   └── config.py        # Pydantic Settings env loader
-├── alembic/             # Database migrations
-└── upload/              # Local storage folder for uploaded PDF files
+│   ├── api/
+│   │   ├── dependencies.py      # Dependency-injection providers for business services (get_document_service, get_chat_service).
+│   │   └── routes.py            # API routing handlers (POST /documents, POST /chat, DELETE endpoints).
+│   ├── auth/
+│   │   ├── client.py            # REST API client wrapping the Better Auth get-session endpoint.
+│   │   ├── dependencies.py      # get_current_user provider (cookie session validation).
+│   │   └── schemas.py           # Pydantic schema for verified CurrentUser structure.
+│   ├── db/
+│   │   ├── base.py              # Declares the shared SQLAlchemy declarative Base.
+│   │   ├── database.py          # Session factory maker, connection engines, and Postgres session generators.
+│   │   └── models.py            # SQLAlchemy tables models mapping User, Document, Conversation, and Message records.
+│   ├── rag/
+│   │   ├── create_collection.py # Installs collections configuration inside Qdrant with Cosine distance metric.
+│   │   ├── embedder.py          # Interface to Google Gemini (text-embedding-004) to compute vector representations.
+│   │   ├── generation.py        # Prompts gemini-2.5-flash to formulate citations-grounded responses.
+│   │   ├── ingestion.py         # Background worker orchestrating document loaders, splitters, embedders, and vectors client.
+│   │   ├── loader.py            # Reads raw file bytes and extracts text blocks using PyPDF.
+│   │   ├── prompts.py           # System guidelines and templates for grounded completions and query rewriting.
+│   │   ├── question_rewriter.py # Context-aware rewriter mapping follow-ups to standalone queries.
+│   │   ├── retriever.py         # Performs filtered semantic query search on Qdrant.
+│   │   ├── schemas.py           # Internal data-transfer-object definitions for the RAG loop.
+│   │   ├── splitter.py          # Partitions raw text blocks into overlapping segments.
+│   │   └── vector_store.py      # Client manager setting up Qdrant client connection pools.
+│   ├── repositories/
+│   │   ├── conversation_repository.py # SQL operations handling active conversations, messages logging, and query history loading.
+│   │   └── document_repository.py     # SQL operations handling document metadata, counts updates, status transitions, and deletion.
+│   ├── schemas/
+│   │   ├── chat.py              # Pydantic schemas validating Chat request payloads.
+│   │   └── conversation.py      # Pydantic schemas formatting Conversation and Message JSON responses.
+│   ├── services/
+│   │   ├── chat_service.py      # Logic service coordinating history fetches, standalone rewrites, similarity queries, and generation.
+│   │   └── document_service.py  # Logic service validating uploads, saving files to R2, setting DB status, and scheduling ingestion tasks.
+│   ├── storage/
+│   │   ├── client.py            # Instantiates the Boto3 s3 client for Cloudflare R2 bucket connection.
+│   │   └── service.py           # Exposes key generator, checksum generator, upload and delete methods.
+│   ├── utils/
+│   │   └── hash.py              # Encryption hashing helpers.
+│   ├── main.py                  # App entry point initializing CORS middleware, lifespan events, and routers.
+│   └── config.py                # Pydantic Settings class parsing environment variables.
+├── alembic/                     # Database schemas version controller migrations.
+└── upload/                      # Temporary storage workspace directory.
 ```
 
 ---
