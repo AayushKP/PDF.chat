@@ -118,7 +118,7 @@ def ingest_pdf(
         client.upsert(
             collection_name=settings.COLLECTION_NAME,
             points=points,
-            wait=True,
+            wait=False,
         )
 
         print(
