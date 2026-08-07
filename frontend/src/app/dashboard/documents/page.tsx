@@ -237,13 +237,24 @@ export default function DocumentsPage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
                 {filteredDocs.map((doc) => {
                   const cleanName = formatFilename(doc.filename);
+                  const isDeleting = deleteDocumentMutation.isPending && deleteDocumentMutation.variables === doc.id;
 
                   return (
                     <div
                       key={doc.id}
-                      onClick={() => handleDocumentClick(doc)}
-                      className="group relative flex flex-col justify-between rounded-2xl border border-border bg-card p-4 transition-all duration-200 hover:shadow-md hover:border-primary/40 cursor-pointer space-y-3"
+                      onClick={() => !isDeleting && handleDocumentClick(doc)}
+                      className={`group relative flex flex-col justify-between rounded-2xl border border-border bg-card p-4 transition-all duration-200 hover:shadow-md hover:border-primary/40 cursor-pointer space-y-3 ${
+                        isDeleting ? "pointer-events-none opacity-60" : ""
+                      }`}
                     >
+                      {/* Glassmorphism pending deletion spinner overlay */}
+                      {isDeleting && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/60 backdrop-blur-[1px] rounded-2xl z-10">
+                          <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                          <span className="text-[10px] font-semibold text-muted-foreground mt-2">Deleting...</span>
+                        </div>
+                      )}
+
                       {/* Top Card Row */}
                       <div className="flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 truncate">
@@ -263,7 +274,8 @@ export default function DocumentsPage() {
                           <DropdownMenuTrigger asChild>
                             <button
                               onClick={(e) => e.stopPropagation()}
-                              className="text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors shrink-0"
+                              disabled={isDeleting}
+                              className="text-muted-foreground hover:text-foreground p-1 rounded-md transition-colors shrink-0 disabled:opacity-50"
                               title="More options"
                             >
                               <MoreVertical className="h-4 w-4" />
@@ -315,15 +327,23 @@ export default function DocumentsPage() {
               <div className="rounded-2xl border border-border bg-card overflow-hidden divide-y divide-border">
                 {filteredDocs.map((doc) => {
                   const cleanName = formatFilename(doc.filename);
+                  const isDeleting = deleteDocumentMutation.isPending && deleteDocumentMutation.variables === doc.id;
+
                   return (
                     <div
                       key={doc.id}
-                      onClick={() => handleDocumentClick(doc)}
-                      className="flex items-center justify-between p-4 hover:bg-muted/40 transition-colors cursor-pointer"
+                      onClick={() => !isDeleting && handleDocumentClick(doc)}
+                      className={`flex items-center justify-between p-4 hover:bg-muted/40 transition-colors cursor-pointer ${
+                        isDeleting ? "pointer-events-none opacity-60" : ""
+                      }`}
                     >
                       <div className="flex items-center gap-3 truncate">
                         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500 text-white font-bold text-xs">
-                          PDF
+                          {isDeleting ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <span>PDF</span>
+                          )}
                         </div>
                         <div className="truncate">
                           <p className="font-semibold text-xs text-foreground truncate">
@@ -339,6 +359,7 @@ export default function DocumentsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
+                          disabled={isDeleting}
                           onClick={(e) => {
                             e.stopPropagation();
                             handleDocumentClick(doc);
@@ -349,13 +370,17 @@ export default function DocumentsPage() {
                           <span>Chat</span>
                         </Button>
 
-                        <button
-                          onClick={(e) => handleDeleteDocument(e, doc.id)}
-                          className="text-muted-foreground hover:text-destructive p-1.5 rounded-md transition-colors"
-                          title="Delete file"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {isDeleting ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-primary mr-2" />
+                        ) : (
+                          <button
+                            onClick={(e) => handleDeleteDocument(e, doc.id)}
+                            className="text-muted-foreground hover:text-destructive p-1.5 rounded-md transition-colors"
+                            title="Delete file"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
