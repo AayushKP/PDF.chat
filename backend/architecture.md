@@ -6,7 +6,7 @@ This document describes the backend architecture, data flow pipelines, design ch
 
 ## 1. System Architecture & Component Mapping
 
-The backend is built as a layered modular system using **FastAPI** (API routing), **SQLAlchemy** (Relational Database mapping), **Boto3** (Cloudflare R2 storage Client), and **Qdrant** (Vector Search engine).
+The backend is built as a layered modular system using **FastAPI** (API routing), **SQLAlchemy** (Relational Database mapping), **Boto3** (Cloudflare R2 storage Client), **Redis & RQ** (Asynchronous Background Queue & Workers), and **Qdrant** (Vector Search engine).
 
 ### A. Architectural Component Diagram
 
@@ -50,17 +50,28 @@ The backend is built as a layered modular system using **FastAPI** (API routing)
 | +-----------+ |                   | +-----------+ |     |  | rewriter.py|  | retriever| |
 | | doc_repo  | |                   | | s3 / R2   | |     |  +-----+------+  +----+-----+ |
 | +-----+-----+ |                   | | upload    | |     |        |              |       |
-|       |       |                   | +-----------+ |     |        v              v       |
-|       v       |                   +---------------+     |  +-----+------+  +----+-----+ |
-| +-----------+ |                                         |  | embedder.py|  | generator| |
-| | Postgres  | | <---------------+ (Saves Counts)        |  +-----+------+  +----+-----+ |
-| | (Supabase)| |                                         |        |              |       |
-| +-----------+ | <---------------+ (Triggers Ingestion)  |        v              v       |
-|               |                                         |  +-----+------+  +----+-----+ |
-| +-----------+ |                                         |  | Qdrant DB  |  | Gemini   | |
-| | conv_repo | |                                         |  +------------+  +----------+ |
-| +-----------+ |                                         |                               |
-+---------------+                                         +-------------------------------+
+|       |       |                   | +-----+-----+ |     |        v              v       |
+|       v       |                           |             |  +-----+------+  +----+-----+ |
+| +-----------+ |                           |             |  | embedder.py|  | generator| |
+| | Postgres  | | <---------------+         |             |  +-----+------+  +----+-----+ |
+| | (Supabase)| | (Saves Metadata |         |             |        |              |       |
+| +-----+-----+ |   & Updates)    |         |             |        v              v       |
+|       ^       |                 |         |             |  +-----+------+  +----+-----+ |
+|       |       |                 |         |             |  | Qdrant DB  |  | Gemini   | |
+| +-----+-----+ |                 |         |             |  +------------+  +----------+ |
+| | conv_repo | |                 |         |             |                               |
+| +-----------+ |                 |         |             +---------------+---------------+
++---------------+                 |         |                             ^
+                                  |         | (Downloads PDF)             | (Upserts Chunks)
+                                  |         v                             |
++---------------------------------+---------+-----------------------------+---------------+
+|  ASYNC QUEUE & WORKER LAYER                                                             |
+|                                                                                         |
+|   +-------------------+     (Enqueues)    +---------------+     (Pops)   +-----------+  |
+|   | document_service  | ----------------> | Redis Queue   | -----------> | RQ Worker |  |
+|   +-------------------+                   | (rq / Redis)  |              | (jobs.py) |  |
+|                                           +---------------+              +-----------+  |
++-----------------------------------------------------------------------------------------+
 ```
 
 ---
@@ -96,6 +107,10 @@ backend/
 │   ├── repositories/
 │   │   ├── conversation_repository.py # SQL operations handling active conversations, messages logging, and query history loading.
 │   │   └── document_repository.py     # SQL operations handling document metadata, counts updates, status transitions, and deletion.
+│   ├── queue/
+│   │   ├── client.py            # Redis client connection and queue name constants.
+│   │   ├── jobs.py              # Background ingestion worker task (downloads PDF from R2, runs RAG pipeline, updates status).
+│   │   └── worker.py            # RQ SimpleWorker process entry point.
 │   ├── schemas/
 │   │   ├── chat.py              # Pydantic schemas validating Chat request payloads.
 │   │   └── conversation.py      # Pydantic schemas formatting Conversation and Message JSON responses.
@@ -131,9 +146,53 @@ To ensure high performance and structured data persistence, the system splits da
 
 ---
 
-## 3. RAG Pipeline Flow
+## 3. Asynchronous Document Pipeline & RAG Flow
 
-### A. 1st Request Flow (Starting a New Conversation)
+### A. Document Upload & Asynchronous Ingestion Flow
+
+```
+[Client]              [FastAPI Backend]            [Cloudflare R2]          [PostgreSQL]           [Redis Queue]          [RQ Worker Process]         [Qdrant DB]
+   │                         │                           │                       │                      │                          │                       │
+   │── 1. POST /documents ──>│                           │                       │                      │                          │                       │
+   │      (PDF file)         │── 2. Stream Upload ──────>│                       │                      │                          │                       │
+   │                         │      documents/<uuid>.pdf │                       │                      │                          │                       │
+   │                         │───────────────────────────┼── 3. Insert record ──>│                      │                          │                       │
+   │                         │                           │      (status=PENDING) │                      │                          │                       │
+   │                         │───────────────────────────┼───────────────────────┼── 4. Enqueue Job ───>│                          │                       │
+   │<─ 5. Return JSON (202) ─│                           │                       │      (doc_id,user_id)│                          │                       │
+   │    {id, status:PENDING} │                           │                       │                      │                          │                       │
+   │                         │                           │                       │                      │── 6. Pop Job ───────────>│                       │
+   │                         │                           │                       │                      │                          │                       │
+   │                         │                           │                       │<─ 7. Fetch metadata ─┼──────────────────────────│                       │
+   │                         │                           │                       │── 8. Status=PROCESSING ───────────────────────>│                       │
+   │                         │                           │<─ 9. Download file ───┼─────────────────────────────────────────────────│                       │
+   │                         │                           │      (to temp file)   │                                                 │                       │
+   │                         │                           │                       │                                                 │── 10. Load, Split, ──>│
+   │                         │                           │                       │                                                 │       Embed, Upsert   │
+   │                         │                           │                       │                                                 │       chunks          │
+   │                         │                           │                       │                                                 │<── 11. Success ───────│
+   │                         │                           │                       │                                                 │                       │
+   │                         │                           │                       │<─ 12. Update page/chunk counts & status=READY ──│                       │
+```
+
+1. **Client Request**: Client sends a multipart `POST /documents` request containing the PDF file.
+2. **Direct Storage Upload**: `DocumentService` streams the PDF file to Cloudflare R2 under `documents/<uuid>.pdf`. The raw binary is **not** stored in PostgreSQL or Redis.
+3. **Database Ledger Entry**: A record is created in PostgreSQL with `status = DocumentStatus.PENDING` storing document key, hash, size, and user ID.
+4. **Task Enqueuing**: `DocumentService` enqueues an ingestion job (`process_document`) into Redis Queue (`ingestion`). Only lightweight metadata (`document_id`, `user_id`) is enqueued.
+5. **Immediate Response**: FastAPI returns the created Document object (in `PENDING` state) to the client immediately.
+6. **Worker Pick Up**: Background worker (`app/queue/worker.py`) running as a separate process pops the job from Redis.
+7. **Metadata & Status Update**: The worker fetches document details from PostgreSQL and updates the status to `PROCESSING`.
+8. **Storage Download**: The worker downloads the PDF from Cloudflare R2 into an OS temporary file (`tempfile.NamedTemporaryFile`).
+9. **RAG Processing**: The worker calls `ingest_pdf(temp_path, document_id, user_id)`:
+   - **PyPDF Loader**: Extracts page text blocks.
+   - **Splitter**: Chunks text into overlapping segments.
+   - **Embedder**: Generates vector embeddings for chunks.
+   - **Qdrant**: Upserts points containing embeddings and metadata into Qdrant.
+10. **Cleanup & Completion**: The worker deletes the local temporary file and updates PostgreSQL with page count, chunk count, and sets `status = DocumentStatus.READY`.
+
+---
+
+### B. 1st Request Flow (Starting a New Conversation)
 
 ```
 [Client]                [FastAPI Backend]        [PostgreSQL]        [Qdrant DB]        [Gemini LLM]
@@ -161,7 +220,7 @@ To ensure high performance and structured data persistence, the system splits da
 7. **Database Persistence**: The backend stores the user's prompt and assistant's response/citations in the PostgreSQL `messages` table.
 8. **Client Response**: The backend returns the `conversation_id`, markdown `answer`, and inline comma-separated `sources` to the client.
 
-### B. Subsequent Request Flow (Follow-up Chat Turns)
+### C. Subsequent Request Flow (Follow-up Chat Turns)
 
 ```
 [Client]                [FastAPI Backend]        [PostgreSQL]        [Qdrant DB]        [Gemini LLM]
@@ -217,7 +276,9 @@ Follow these steps to run the backend server locally:
 
 - Python 3.11+
 - PostgreSQL database
+- Redis instance (local or Cloud)
 - Qdrant cloud account or local Qdrant instance
+- Cloudflare R2 bucket (S3 compatible storage)
 
 ### 2. Installation
 
@@ -244,6 +305,12 @@ QDRANT_API_KEY=your_qdrant_api_key
 COLLECTION_NAME=pdf.chat
 DATABASE_URL=postgresql+psycopg://user:password@host:port/database_name
 FRONTEND_URL=http://localhost:3000
+REDIS_HOST=localhost
+REDIS_PORT=6379
+R2_ACCOUNT_ID=your_cloudflare_r2_account_id
+R2_ACCESS_KEY_ID=your_r2_access_key
+R2_SECRET_ACCESS_KEY=your_r2_secret_key
+R2_BUCKET=your_r2_bucket_name
 ```
 
 ### 4. Database Migrations
@@ -254,12 +321,18 @@ Run Alembic migrations to construct database tables:
 alembic upgrade head
 ```
 
-### 5. Run the Server
+### 5. Run the Application Services
 
 Start the Uvicorn development server:
 
 ```bash
 uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+```
+
+Start the RQ Background Ingestion Worker (in a separate terminal process):
+
+```bash
+python -m app.queue.worker
 ```
 
 The API documentation will be available at `http://127.0.0.1:8000/docs`.
