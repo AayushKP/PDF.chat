@@ -1,5 +1,5 @@
 from rq import Queue
-from rq.worker import Worker
+from rq.worker.worker_classes import SimpleWorker
 
 from app.queue.client import (
     INGESTION_QUEUE_NAME,
@@ -13,7 +13,7 @@ def main():
         connection=redis_connection,
     )
 
-    worker = Worker(
+    worker = SimpleWorker(
         queues=[queue],
         connection=redis_connection,
     )

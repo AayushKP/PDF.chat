@@ -130,7 +130,7 @@ def ingest_pdf(
 
         print(f"Uploaded {uploaded}/{chunk_count}")
 
-    print(f"\n✅ Total Ingestion Time: {time.perf_counter() - pipeline_start:.2f}s")
+    print(f"\nTotal Ingestion Time: {time.perf_counter() - pipeline_start:.2f}s")
 
     return {
         "page_count": page_count,
