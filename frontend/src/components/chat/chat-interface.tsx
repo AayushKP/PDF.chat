@@ -206,7 +206,7 @@ export function ChatInterface({
       </div>
 
       {/* Main Chat Content Area */}
-      <div className="flex-1 overflow-y-auto w-full">
+      <div className="flex-1 overflow-y-auto w-full no-scrollbar">
         {isLoadingConv ? (
           <div className="flex h-full items-center justify-center py-16">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -405,7 +405,7 @@ export function ChatInterface({
                   : "Attach a PDF or type your question..."
               }
               rows={1}
-              className="flex-1 resize-none bg-transparent px-2.5 py-1.5 text-xs sm:text-sm focus:outline-none max-h-32 min-h-[32px] text-foreground disabled:opacity-50"
+              className="flex-1 resize-none bg-transparent px-2.5 py-1.5 text-xs sm:text-sm focus:outline-none max-h-32 min-h-[32px] text-foreground disabled:opacity-50 no-scrollbar"
             />
 
             {/* Send Button */}
