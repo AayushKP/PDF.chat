@@ -16,6 +16,9 @@ class Settings(BaseSettings):
     R2_BUCKET: str
     R2_PUBLIC_URL: str
 
+    UPSTASH_REDIS_URL: str
+    REDIS_PREFIX: str = "chatwpdf"
+
     MAX_UPLOAD_SIZE_MB: int = 30
 
     model_config = SettingsConfigDict(
