@@ -45,7 +45,6 @@ async def upload_document(
     document = service.upload(
         file=file,
         user_id=current_user.id,
-        background_tasks=background_tasks,
     )
 
     return document

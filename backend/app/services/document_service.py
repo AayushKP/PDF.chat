@@ -1,11 +1,13 @@
-import os
-import tempfile
-import uuid
-from fastapi import BackgroundTasks
+from uuid import UUID
+
+from rq import Queue
 
 from app.config import settings
-from app.db.models import DocumentStatus
-from app.rag.ingestion import ingest_pdf
+from app.queue.client import (
+    INGESTION_QUEUE_NAME,
+    redis_connection,
+)
+from app.queue.jobs import process_document
 from app.repositories.document_repository import DocumentRepository
 from app.storage.service import StorageService
 
@@ -24,7 +26,6 @@ class DocumentService:
         *,
         file,
         user_id,
-        background_tasks: BackgroundTasks,
     ):
         # --------------------------
         # Validation
@@ -48,7 +49,7 @@ class DocumentService:
             raise ValueError("Only PDF files are supported.")
 
         # --------------------------
-        # Read once
+        # Read file once
         # --------------------------
 
         file_bytes = file.file.read()
@@ -56,9 +57,17 @@ class DocumentService:
 
         content_hash = self.storage.calculate_hash(file_bytes)
 
+        # --------------------------
+        # Generate R2 key
+        # --------------------------
+
         document_key = self.storage.generate_document_key(
             file.filename,
         )
+
+        # --------------------------
+        # Upload to R2
+        # --------------------------
 
         self.storage.upload(
             file=file,
@@ -68,6 +77,10 @@ class DocumentService:
         document_url = self.storage.get_document_url(
             document_key,
         )
+
+        # --------------------------
+        # Create database record
+        # --------------------------
 
         document = self.repository.create(
             user_id=user_id,
@@ -79,67 +92,24 @@ class DocumentService:
             content_hash=content_hash,
         )
 
-        # Queue ingestion in the background to avoid API timeouts
-        background_tasks.add_task(
-            self.process_ingestion,
-            document_id=document.id,
-            user_id=user_id,
-            file_bytes=file_bytes,
+        # --------------------------
+        # Queue ingestion job
+        # --------------------------
+
+        queue = Queue(
+            name=INGESTION_QUEUE_NAME,
+            connection=redis_connection,
         )
 
+        queue.enqueue(
+            process_document,
+            document_id=str(document.id),
+            user_id=str(user_id),
+        )
+
+        print(f"Queued document: {document.id}")
+
         return document
-
-    def process_ingestion(
-        self,
-        document_id: uuid.UUID,
-        user_id: str,
-        file_bytes: bytes,
-    ):
-        document = self.repository.get_by_id(document_id)
-        if not document:
-            return
-
-        try:
-            with tempfile.NamedTemporaryFile(
-                suffix=".pdf",
-                delete=False,
-            ) as temp_file:
-                temp_file.write(file_bytes)
-                temp_file.flush()
-
-            temp_path = temp_file.name
-
-            try:
-                result = ingest_pdf(
-                    path=temp_path,
-                    document_id=str(document.id),
-                    user_id=str(user_id),
-                )
-            finally:
-                os.remove(temp_path)
-
-            self.repository.update_counts(
-                document=document,
-                page_count=result["page_count"],
-                chunk_count=result["chunk_count"],
-            )
-
-            self.repository.update_status(
-                document=document,
-                status=DocumentStatus.READY,
-            )
-
-        except Exception:
-            self.repository.update_status(
-                document=document,
-                status=DocumentStatus.FAILED,
-            )
-            try:
-                self.storage.delete(
-                    key=document.document_key,
-                )
-            except Exception:
-                pass
 
     def list_documents(
         self,
@@ -152,7 +122,7 @@ class DocumentService:
     def delete_document(
         self,
         *,
-        document_id: uuid.UUID,
+        document_id: UUID,
         user_id: str,
     ):
         document = self.repository.get_by_id(
@@ -162,10 +132,13 @@ class DocumentService:
         if document is None or document.user_id != user_id:
             raise ValueError("Document not found.")
 
+        # --------------------------
+        # Delete vectors from Qdrant
+        # --------------------------
+
         try:
             from qdrant_client.http import models
 
-            from app.config import settings
             from app.rag.qdrant_client import client
 
             client.delete(
@@ -181,12 +154,21 @@ class DocumentService:
                     ]
                 ),
             )
-        except Exception:
-            pass
+
+        except Exception as exc:
+            print(f"Failed to delete Qdrant vectors: {exc}")
+
+        # --------------------------
+        # Delete document from R2
+        # --------------------------
 
         self.storage.delete(
             key=document.document_key,
         )
+
+        # --------------------------
+        # Delete database record
+        # --------------------------
 
         self.repository.delete(
             document,
