@@ -2,7 +2,6 @@ import uuid
 
 from fastapi import (
     APIRouter,
-    BackgroundTasks,
     Depends,
     File,
     HTTPException,
@@ -25,7 +24,6 @@ router = APIRouter()
 
 @router.post("/documents")
 async def upload_document(
-    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     current_user: CurrentUser = Depends(get_current_user),
     service: DocumentService = Depends(get_document_service),
